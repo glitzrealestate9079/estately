@@ -1,0 +1,78 @@
+// Mock add-on services catalog for the Monetization > Services module.
+// `icon` is a lucide-react icon name (string) resolved via SERVICE_ICON_MAP —
+// never import/pass the icon component itself across the server/client boundary.
+
+export const SERVICES = [
+  {
+    id: "SVC-1001",
+    name: "Professional Photography",
+    price: 2999,
+    description: "A professional photographer visits the property to capture high-resolution, well-lit listing photos that boost enquiry rates.",
+    subscribersCount: 184,
+    status: "Active",
+    icon: "Camera",
+  },
+  {
+    id: "SVC-1002",
+    name: "Featured Listing Boost",
+    price: 1499,
+    description: "Push a listing to the top of search results and the homepage carousel for 14 days to maximise visibility.",
+    subscribersCount: 312,
+    status: "Active",
+    icon: "Rocket",
+  },
+  {
+    id: "SVC-1003",
+    name: "Legal Documentation Assistance",
+    price: 4999,
+    description: "Verified legal experts review title deeds, RERA filings and drafting of sale agreements on the seller's behalf.",
+    subscribersCount: 96,
+    status: "Active",
+    icon: "Scale",
+  },
+  {
+    id: "SVC-1004",
+    name: "Virtual Tour Creation",
+    price: 3499,
+    description: "A 3D walkthrough and 360-degree virtual tour is produced so buyers can explore the property remotely.",
+    subscribersCount: 128,
+    status: "Active",
+    icon: "Video",
+  },
+  {
+    id: "SVC-1005",
+    name: "Premium Listing Placement",
+    price: 5999,
+    description: "Guaranteed placement in the premium section of city search pages for 30 days with a distinct highlighted badge.",
+    subscribersCount: 210,
+    status: "Active",
+    icon: "Star",
+  },
+  {
+    id: "SVC-1006",
+    name: "Social Media Promotion",
+    price: 1999,
+    description: "The listing is promoted across Estately's Instagram, Facebook and LinkedIn channels with targeted city audiences.",
+    subscribersCount: 154,
+    status: "Active",
+    icon: "Share2",
+  },
+  {
+    id: "SVC-1007",
+    name: "Home Staging Consultation",
+    price: 3999,
+    description: "An interior stylist recommends furniture layout and décor changes to make the property more appealing in photos and visits.",
+    subscribersCount: 42,
+    status: "Inactive",
+    icon: "Sofa",
+  },
+  {
+    id: "SVC-1008",
+    name: "Priority Customer Support",
+    price: 999,
+    description: "Skip the queue with a dedicated support line and a same-day response guarantee for listing and account issues.",
+    subscribersCount: 268,
+    status: "Active",
+    icon: "Headphones",
+  },
+];

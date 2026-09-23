@@ -1,0 +1,257 @@
+import { imageForProject } from "@/data/property-images";
+
+export const PROJECT_CITIES = [
+  "Jaipur",
+  "Gurugram",
+  "Bengaluru",
+  "Pune",
+  "Mumbai",
+  "Hyderabad",
+  "Noida",
+  "Chennai",
+  "Ahmedabad",
+  "Delhi NCR",
+];
+
+const CITY_CODES = {
+  Jaipur: "JAI",
+  Gurugram: "GGM",
+  Bengaluru: "BLR",
+  Pune: "PUN",
+  Mumbai: "MUM",
+  Hyderabad: "HYD",
+  Noida: "NOI",
+  Chennai: "CHE",
+  Ahmedabad: "AHM",
+  "Delhi NCR": "DEL",
+};
+
+const RAW_PROJECTS = [
+  {
+    name: "Horizon Skyline Residences",
+    developer: "Horizon Developers",
+    type: "Residential",
+    status: "New Launch",
+    city: "Gurugram",
+    locality: "Sector 84",
+    totalUnits: 420,
+    availableUnits: 310,
+    startingPrice: 8500000,
+    possessionDate: "2028-03-01",
+  },
+  {
+    name: "Amrapali Emerald Greens",
+    developer: "Amrapali Estates",
+    type: "Residential",
+    status: "Under Construction",
+    city: "Noida",
+    locality: "Sector 93B",
+    totalUnits: 560,
+    availableUnits: 180,
+    startingPrice: 6200000,
+    possessionDate: "2027-06-01",
+  },
+  {
+    name: "Prestige Lakeview Towers",
+    developer: "Prestige Homes Pvt Ltd",
+    type: "Residential",
+    status: "Ready to Move",
+    city: "Bengaluru",
+    locality: "Whitefield",
+    totalUnits: 300,
+    availableUnits: 42,
+    startingPrice: 9500000,
+    possessionDate: "2026-01-01",
+  },
+  {
+    name: "Skyline Business Bay",
+    developer: "Skyline Towers Pvt Ltd",
+    type: "Commercial",
+    status: "Under Construction",
+    city: "Mumbai",
+    locality: "Bandra Kurla Complex",
+    totalUnits: 180,
+    availableUnits: 96,
+    startingPrice: 18000000,
+    possessionDate: "2027-12-01",
+  },
+  {
+    name: "Godrej Woodscape",
+    developer: "Godrej Properties",
+    type: "Residential",
+    status: "New Launch",
+    city: "Pune",
+    locality: "Hinjewadi",
+    totalUnits: 480,
+    availableUnits: 400,
+    startingPrice: 5800000,
+    possessionDate: "2028-09-01",
+  },
+  {
+    name: "Lodha Elite Meadows",
+    developer: "Lodha Group",
+    type: "Villa Township",
+    status: "Upcoming",
+    city: "Pune",
+    locality: "Mulshi",
+    totalUnits: 150,
+    availableUnits: 150,
+    startingPrice: 22000000,
+    possessionDate: "2029-03-01",
+  },
+  {
+    name: "Sobha Palm Residency",
+    developer: "Sobha Developers",
+    type: "Residential",
+    status: "Ready to Move",
+    city: "Bengaluru",
+    locality: "Sarjapur Road",
+    totalUnits: 260,
+    availableUnits: 28,
+    startingPrice: 7800000,
+    possessionDate: "2025-11-01",
+  },
+  {
+    name: "Brigade Metropolis",
+    developer: "Brigade Group",
+    type: "Mixed-Use",
+    status: "Under Construction",
+    city: "Bengaluru",
+    locality: "Yelahanka",
+    totalUnits: 620,
+    availableUnits: 340,
+    startingPrice: 6400000,
+    possessionDate: "2027-08-01",
+  },
+  {
+    name: "DLF Cyber Heights",
+    developer: "DLF Limited",
+    type: "Commercial",
+    status: "Ready to Move",
+    city: "Gurugram",
+    locality: "Cyber City",
+    totalUnits: 90,
+    availableUnits: 12,
+    startingPrice: 32000000,
+    possessionDate: "2025-06-01",
+  },
+  {
+    name: "Puravankara Sunflower County",
+    developer: "Puravankara",
+    type: "Plotted Development",
+    status: "Upcoming",
+    city: "Chennai",
+    locality: "OMR",
+    totalUnits: 220,
+    availableUnits: 220,
+    startingPrice: 3200000,
+    possessionDate: "2028-12-01",
+  },
+  {
+    name: "Shapoorji Parkwest Residences",
+    developer: "Shapoorji Pallonji",
+    type: "Residential",
+    status: "New Launch",
+    city: "Mumbai",
+    locality: "Worli",
+    totalUnits: 340,
+    availableUnits: 260,
+    startingPrice: 21000000,
+    possessionDate: "2028-05-01",
+  },
+  {
+    name: "Mahindra Happinest Homes",
+    developer: "Mahindra Lifespaces",
+    type: "Residential",
+    status: "Under Construction",
+    city: "Ahmedabad",
+    locality: "SG Highway",
+    totalUnits: 500,
+    availableUnits: 210,
+    startingPrice: 4200000,
+    possessionDate: "2027-04-01",
+  },
+  {
+    name: "Rajasthan Heritage Villas",
+    developer: "Rajasthan Farms LLP",
+    type: "Villa Township",
+    status: "Completed",
+    city: "Jaipur",
+    locality: "Chandwaji",
+    totalUnits: 80,
+    availableUnits: 6,
+    startingPrice: 14500000,
+    possessionDate: "2024-10-01",
+  },
+  {
+    name: "Casagrand Elite Greens",
+    developer: "Casagrand Builders",
+    type: "Plotted Development",
+    status: "New Launch",
+    city: "Chennai",
+    locality: "Sriperumbudur",
+    totalUnits: 300,
+    availableUnits: 275,
+    startingPrice: 1800000,
+    possessionDate: "2028-02-01",
+  },
+];
+
+function pseudoRandom(seed, mod) {
+  return (seed * 9301 + 49297) % mod;
+}
+
+export const PROJECTS = RAW_PROJECTS.map((p, index) => {
+  const id = `PRJ-${2000 + index}`;
+  const soldUnits = p.totalUnits - p.availableUnits;
+  const priceMultiplier = 1.5 + ((index % 4) * 0.25);
+  const priceRangeMax = Math.round((p.startingPrice * priceMultiplier) / 10000) * 10000;
+  const day = 1 + (index % 27);
+  const month = 1 + (index % 9);
+  const cityCode = CITY_CODES[p.city] ?? "IND";
+  const reraNumber = p.status === "Upcoming" ? null : `${cityCode}/RERA/${2024 + (index % 3)}/${1000 + index * 7}`;
+
+  return {
+    id,
+    slug: id.toLowerCase(),
+    projectName: p.name,
+    developer: p.developer,
+    projectType: p.type,
+    status: p.status,
+    city: p.city,
+    locality: p.locality,
+    address: `${p.locality}, ${p.city}`,
+    totalUnits: p.totalUnits,
+    availableUnits: p.availableUnits,
+    soldUnits,
+    startingPrice: p.startingPrice,
+    priceRangeMax,
+    possessionDate: p.possessionDate,
+    reraNumber,
+    amenities: Array.from(
+      { length: 4 + (index % 5) },
+      (_, i) =>
+        [
+          "Swimming Pool",
+          "Gym",
+          "Parking",
+          "Lift",
+          "Security",
+          "Power Backup",
+          "Garden",
+          "Club House",
+          "CCTV",
+          "Children's Play Area",
+          "Rain Water Harvesting",
+          "Intercom",
+        ][(index + i) % 12]
+    ),
+    description: `${p.name} is a landmark ${p.type.toLowerCase()} development by ${p.developer} in ${p.locality}, ${p.city}. Spread across a thoughtfully planned campus, it offers modern architecture, premium specifications, and excellent connectivity to major business and social hubs, making it a compelling choice for end-users and investors alike.`,
+    images: Array.from({ length: 4 }, (_, i) => imageForProject(index + i)),
+    createdAt: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  };
+});
+
+export function getProjectById(id) {
+  return PROJECTS.find((p) => p.id === id);
+}

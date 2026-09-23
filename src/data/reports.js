@@ -1,0 +1,58 @@
+// Frontend-only report catalogue. `icon` is a string key mapped to a lucide
+// component inside the client component that renders it (see report-card.jsx).
+export const REPORTS = [
+  {
+    id: "monthly-listing",
+    title: "Monthly Listing Report",
+    description: "A complete breakdown of new, approved and expired listings for the selected month.",
+    category: "Property Management",
+    icon: "building",
+    format: "PDF",
+    lastGenerated: "2026-09-01",
+  },
+  {
+    id: "lead-source",
+    title: "Lead Source Report",
+    description: "Tracks lead volume and conversion rate across every acquisition channel.",
+    category: "Leads & Engagement",
+    icon: "contact",
+    format: "XLSX",
+    lastGenerated: "2026-09-15",
+  },
+  {
+    id: "revenue",
+    title: "Revenue Report",
+    description: "Subscription, featured listing and service revenue with month-over-month growth.",
+    category: "Monetization",
+    icon: "wallet",
+    format: "PDF",
+    lastGenerated: "2026-09-18",
+  },
+  {
+    id: "agent-performance",
+    title: "Agent Performance Report",
+    description: "Ranks agents by closed deals, response time and customer satisfaction score.",
+    category: "User Management",
+    icon: "user-cog",
+    format: "XLSX",
+    lastGenerated: "2026-08-29",
+  },
+  {
+    id: "property-approval",
+    title: "Property Approval Report",
+    description: "Approval turnaround time and rejection reasons across the moderation queue.",
+    category: "Property Management",
+    icon: "clipboard-check",
+    format: "PDF",
+    lastGenerated: "2026-09-10",
+  },
+  {
+    id: "site-visit",
+    title: "Site Visit Report",
+    description: "Scheduled, completed and rescheduled site visits with agent-wise attendance.",
+    category: "Leads & Engagement",
+    icon: "calendar-clock",
+    format: "PDF",
+    lastGenerated: "2026-09-20",
+  },
+];
