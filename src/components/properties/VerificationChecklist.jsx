@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, Clock3, XCircle } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 function StatusIcon({ state }) {
   if (state === true || state === "Verified") {
@@ -34,6 +35,11 @@ export function VerificationChecklist({ property }) {
   const reraIconState =
     property.reraStatus === "Registered" ? "Verified" : property.reraStatus === "Pending" ? "Pending" : undefined;
 
+  // Staleness: the verification is only good for VERIFICATION_VALIDITY_DAYS
+  // (see propertySchema.js) — once verifiedUntil is in the past, flag it so
+  // admins know this listing needs re-verifying even though it once passed.
+  const isStale = Boolean(property.verifiedUntil) && new Date(property.verifiedUntil) < new Date();
+
   return (
     <div>
       <Row label="Phone Verified" state={property.phoneVerified} value={property.phoneVerified ? "Verified" : "Not Verified"} />
@@ -41,6 +47,22 @@ export function VerificationChecklist({ property }) {
       <Row label="Property Verification" state={property.propertyVerified} value={property.propertyVerified || "Pending"} />
       {property.reraAuthority && <Row label="RERA Authority" state={undefined} value={property.reraAuthority} />}
       {property.reraStatus && <Row label="RERA Status" state={reraIconState} value={property.reraStatus} />}
+      {property.verifiedUntil && (
+        <Row
+          label="Verification Valid Until"
+          state={isStale ? "Rejected" : "Verified"}
+          value={
+            <span className="inline-flex items-center gap-1.5">
+              {formatDate(property.verifiedUntil)}
+              {isStale && (
+                <span className="rounded-full bg-error-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error-600 dark:bg-error-500/10 dark:text-error-500">
+                  Expired
+                </span>
+              )}
+            </span>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -22,7 +22,7 @@ export function AgentsView() {
   useEffect(() => {
     if (searchParams.get("new") === "1") {
       openAdd();
-      router.replace("/agents");
+      router.replace("/admin/agents");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);

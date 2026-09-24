@@ -12,7 +12,7 @@ export function PropertyImage({ src, alt, className, sizes = "(min-width: 1024px
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-gradient-to-br from-navy-100 to-navy-200 text-navy-400 dark:from-navy-800 dark:to-navy-900 dark:text-navy-600",
+          "absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-navy-100 to-navy-200 text-navy-400 dark:from-navy-800 dark:to-navy-900 dark:text-navy-600",
           className
         )}
       >

@@ -5,9 +5,13 @@ import {
   Ban,
   CalendarCheck,
   CalendarClock,
+  CalendarDays,
   CalendarX2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
+  List,
   MapPin,
   Pencil,
   Plus,
@@ -21,18 +25,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription } from "@/components/ui/modal";
 import { RowActions } from "@/components/common/row-actions";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SiteVisitFormModal } from "@/components/site-visits/SiteVisitFormModal";
 import { RescheduleVisitModal } from "@/components/site-visits/RescheduleVisitModal";
 import { SITE_VISITS as INITIAL_VISITS, SITE_VISIT_AGENTS, SITE_VISIT_CITIES } from "@/data/site-visits";
 import { SITE_VISIT_STATUSES } from "@/schemas/siteVisitSchema";
-import { formatDate } from "@/lib/utils";
+import { STATUS_STYLES, DEFAULT_STATUS_STYLE } from "@/lib/constants";
+import { cn, formatDate } from "@/lib/utils";
 
 const DEFAULT_FILTERS = { search: "", status: "all", agent: "all", dateFrom: "", dateTo: "" };
 const ACTIVE_STATUSES = new Set(["Completed", "Cancelled"]);
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MAX_VISIBLE_CHIPS = 2;
 
 function timeToMinutes(time) {
   const match = /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i.exec((time || "").trim());
@@ -108,6 +117,150 @@ function VisitRow({ visit, onConfirm, onComplete, onReschedule, onCancel, onEdit
   );
 }
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function dateKey(year, month, day) {
+  return `${year}-${pad2(month + 1)}-${pad2(day)}`;
+}
+
+// Builds a full 7-column month grid (in whole weeks), padding with the
+// trailing days of the previous/next month so every row stays complete.
+function buildMonthCells(year, month) {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const cells = [];
+
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    const day = daysInPrevMonth - i;
+    const m = month === 0 ? 11 : month - 1;
+    const y = month === 0 ? year - 1 : year;
+    cells.push({ key: dateKey(y, m, day), day, inMonth: false });
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push({ key: dateKey(year, month, day), day, inMonth: true });
+  }
+  let trailDay = 1;
+  while (cells.length % 7 !== 0) {
+    const m = month === 11 ? 0 : month + 1;
+    const y = month === 11 ? year + 1 : year;
+    cells.push({ key: dateKey(y, m, trailDay), day: trailDay, inMonth: false });
+    trailDay++;
+  }
+  return cells;
+}
+
+// Derived once from the static seed data (never from Date.now()) so the
+// month grid's initial view is identical on the server and client render.
+const INITIAL_CALENDAR_MONTH = (() => {
+  const earliest = [...INITIAL_VISITS].sort((a, b) => a.date.localeCompare(b.date))[0]?.date;
+  if (!earliest) return { year: 2026, month: 8 };
+  const [year, month] = earliest.split("-").map(Number);
+  return { year, month: month - 1 };
+})();
+
+// Month-grid alternative to the agenda list. Day cells stay lightweight
+// (a status-colored chip per visit); opening a day reuses the same
+// VisitRow + RowActions used by the agenda view via `onSelectDay`.
+function SiteVisitCalendar({ groups, onSelectDay }) {
+  const [cursor, setCursor] = useState(INITIAL_CALENDAR_MONTH);
+
+  const visitsByDate = useMemo(() => new Map(groups.map((g) => [g.date, g.items])), [groups]);
+  const cells = useMemo(() => buildMonthCells(cursor.year, cursor.month), [cursor]);
+  const monthLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(
+        new Date(cursor.year, cursor.month, 1)
+      ),
+    [cursor]
+  );
+
+  function goToMonth(delta) {
+    setCursor((prev) => {
+      let month = prev.month + delta;
+      let year = prev.year;
+      if (month < 0) {
+        month = 11;
+        year -= 1;
+      } else if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+      return { year, month };
+    });
+  }
+
+  function goToToday() {
+    const now = new Date();
+    setCursor({ year: now.getFullYear(), month: now.getMonth() });
+  }
+
+  return (
+    <Card className="animate-slide-up overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-surface-muted/60 px-5 py-3">
+        <p className="font-display text-sm font-semibold text-foreground">{monthLabel}</p>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={goToToday}>
+            Today
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goToMonth(-1)} aria-label="Previous month">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goToMonth(1)} aria-label="Next month">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 border-b border-border-subtle text-center text-xs font-medium text-foreground-muted">
+        {WEEKDAY_LABELS.map((label) => (
+          <div key={label} className="py-2">
+            {label}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((cell) => {
+          const items = visitsByDate.get(cell.key) ?? [];
+          const visible = items.slice(0, MAX_VISIBLE_CHIPS);
+          const extra = items.length - visible.length;
+          return (
+            <button
+              key={cell.key}
+              type="button"
+              disabled={items.length === 0}
+              onClick={() => onSelectDay(cell.key)}
+              className={cn(
+                "flex min-h-[92px] flex-col items-stretch gap-1 border-b border-r border-border-subtle p-1.5 text-left transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40 disabled:cursor-default disabled:hover:bg-transparent sm:min-h-[108px]",
+                !cell.inMonth && "bg-surface-muted/40"
+              )}
+            >
+              <span className={cn("text-xs font-medium", cell.inMonth ? "text-foreground" : "text-foreground-muted/60")}>
+                {cell.day}
+              </span>
+              <div className="flex flex-1 flex-col gap-1 overflow-hidden">
+                {visible.map((visit) => (
+                  <span
+                    key={visit.id}
+                    className={cn(
+                      "truncate rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+                      STATUS_STYLES[visit.status?.toLowerCase()] ?? DEFAULT_STATUS_STYLE
+                    )}
+                  >
+                    {visit.time} · {visit.buyerName}
+                  </span>
+                ))}
+                {extra > 0 && <span className="text-[10px] font-medium text-foreground-muted">+{extra} more</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export function SiteVisitsList() {
   const [visits, setVisits] = useState(INITIAL_VISITS);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -116,6 +269,8 @@ export function SiteVisitsList() {
   const [editingVisit, setEditingVisit] = useState(null);
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
+  const [view, setView] = useState("agenda");
+  const [selectedDate, setSelectedDate] = useState(null);
 
   const activeFilterCount = Object.entries(filters).filter(
     ([key, value]) => value && value !== "all" && !(key === "search")
@@ -147,6 +302,10 @@ export function SiteVisitsList() {
   }, [visits, filters]);
 
   const totalCount = groups.reduce((sum, g) => sum + g.items.length, 0);
+  const selectedDayItems = useMemo(
+    () => groups.find((g) => g.date === selectedDate)?.items ?? [],
+    [groups, selectedDate]
+  );
 
   function updateFilters(next) {
     setFilters(next);
@@ -271,47 +430,82 @@ export function SiteVisitsList() {
         </CardContent>
       </Card>
 
-      {groups.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={CalendarX2}
-            title="No site visits found"
-            description="Try adjusting your filters, or schedule a new site visit to get started."
-            action={
-              <Button onClick={openAdd}>
-                <Plus className="h-4 w-4" />
-                Schedule Visit
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        groups.map((group) => (
-          <Card key={group.date} className="animate-slide-up overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border-subtle bg-surface-muted/60 px-5 py-3">
-              <p className="font-display text-sm font-semibold text-foreground">
-                {formatDate(group.date, { weekday: "long" })}
-              </p>
-              <span className="text-xs font-medium text-foreground-muted">
-                {group.items.length} visit{group.items.length > 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              {group.items.map((visit) => (
-                <VisitRow
-                  key={visit.id}
-                  visit={visit}
-                  onConfirm={confirmVisit}
-                  onComplete={completeVisit}
-                  onReschedule={setRescheduleTarget}
-                  onCancel={setCancelTarget}
-                  onEdit={openEdit}
-                />
-              ))}
-            </div>
-          </Card>
-        ))
-      )}
+      <Tabs value={view} onValueChange={setView}>
+        <TabsList>
+          <TabsTrigger value="agenda">
+            <List className="h-3.5 w-3.5" />
+            Agenda
+          </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Calendar
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="agenda" className="space-y-6">
+          {groups.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={CalendarX2}
+                title="No site visits found"
+                description="Try adjusting your filters, or schedule a new site visit to get started."
+                action={
+                  <Button onClick={openAdd}>
+                    <Plus className="h-4 w-4" />
+                    Schedule Visit
+                  </Button>
+                }
+              />
+            </Card>
+          ) : (
+            groups.map((group) => (
+              <Card key={group.date} className="animate-slide-up overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border-subtle bg-surface-muted/60 px-5 py-3">
+                  <p className="font-display text-sm font-semibold text-foreground">
+                    {formatDate(group.date, { weekday: "long" })}
+                  </p>
+                  <span className="text-xs font-medium text-foreground-muted">
+                    {group.items.length} visit{group.items.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="divide-y divide-border-subtle">
+                  {group.items.map((visit) => (
+                    <VisitRow
+                      key={visit.id}
+                      visit={visit}
+                      onConfirm={confirmVisit}
+                      onComplete={completeVisit}
+                      onReschedule={setRescheduleTarget}
+                      onCancel={setCancelTarget}
+                      onEdit={openEdit}
+                    />
+                  ))}
+                </div>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          {groups.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={CalendarX2}
+                title="No site visits found"
+                description="Try adjusting your filters, or schedule a new site visit to get started."
+                action={
+                  <Button onClick={openAdd}>
+                    <Plus className="h-4 w-4" />
+                    Schedule Visit
+                  </Button>
+                }
+              />
+            </Card>
+          ) : (
+            <SiteVisitCalendar groups={groups} onSelectDay={setSelectedDate} />
+          )}
+        </TabsContent>
+      </Tabs>
 
       <SiteVisitFormModal
         open={formOpen}
@@ -336,6 +530,42 @@ export function SiteVisitsList() {
         confirmLabel="Cancel Visit"
         onConfirm={handleCancelVisit}
       />
+
+      {/* Day detail — opened from a calendar day or visit chip. Reuses VisitRow
+          (and therefore RowActions) exactly as the agenda view does, so no
+          detail/actions logic is duplicated for the calendar. */}
+      <Modal open={!!selectedDate} onOpenChange={(open) => !open && setSelectedDate(null)}>
+        <ModalContent size="lg" className="p-0">
+          <ModalHeader>
+            <ModalTitle>{selectedDate ? formatDate(selectedDate, { weekday: "long" }) : ""}</ModalTitle>
+            <ModalDescription>
+              {selectedDayItems.length} visit{selectedDayItems.length !== 1 ? "s" : ""} scheduled
+            </ModalDescription>
+          </ModalHeader>
+          <div className="max-h-[60vh] divide-y divide-border-subtle overflow-y-auto">
+            {selectedDayItems.map((visit) => (
+              <VisitRow
+                key={visit.id}
+                visit={visit}
+                onConfirm={confirmVisit}
+                onComplete={completeVisit}
+                onReschedule={(v) => {
+                  setSelectedDate(null);
+                  setRescheduleTarget(v);
+                }}
+                onCancel={(v) => {
+                  setSelectedDate(null);
+                  setCancelTarget(v);
+                }}
+                onEdit={(v) => {
+                  setSelectedDate(null);
+                  openEdit(v);
+                }}
+              />
+            ))}
+          </div>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

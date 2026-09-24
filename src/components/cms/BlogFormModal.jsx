@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,6 @@ export function BlogFormModal({ open, onOpenChange, mode = "add", defaultValues,
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(blogSchema),
@@ -36,7 +35,7 @@ export function BlogFormModal({ open, onOpenChange, mode = "add", defaultValues,
     }
   }, [open, defaultValues, reset]);
 
-  const coverPreview = watch("coverImage");
+  const coverPreview = useWatch({ control, name: "coverImage" });
 
   async function onValid(data) {
     setSubmitting(true);

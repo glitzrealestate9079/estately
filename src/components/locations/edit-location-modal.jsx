@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
@@ -17,13 +17,16 @@ import {
 export function EditLocationModal({ open, onOpenChange, initialName, levelLabel = "Location", onSave }) {
   const [name, setName] = useState(initialName ?? "");
   const [error, setError] = useState("");
+  const openKey = `${open}:${initialName ?? ""}`;
+  const [lastOpenKey, setLastOpenKey] = useState(openKey);
 
-  useEffect(() => {
+  if (openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
     if (open) {
       setName(initialName ?? "");
       setError("");
     }
-  }, [open, initialName]);
+  }
 
   function handleSave() {
     const trimmed = name.trim();

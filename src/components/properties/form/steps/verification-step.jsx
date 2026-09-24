@@ -1,12 +1,15 @@
 "use client";
 
-import { Controller, useFormContext } from "react-hook-form";
-import { Lock, ShieldCheck } from "lucide-react";
+import { useEffect } from "react";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { CalendarClock, Lock, ShieldCheck } from "lucide-react";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
+import { addDays, formatDate } from "@/lib/utils";
+import { VERIFICATION_VALIDITY_DAYS } from "@/schemas/propertySchema";
 
 const RERA_STATUSES = ["Registered", "Pending", "Not Applicable"];
 const VERIFICATION_STATUSES = ["Pending", "Verified", "Rejected"];
@@ -15,8 +18,25 @@ export function VerificationStep() {
   const {
     register,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext();
+
+  const [phoneVerified, identityVerified, propertyVerified, verifiedUntil] = useWatch({
+    control,
+    name: ["phoneVerified", "identityVerified", "propertyVerified", "verifiedUntil"],
+  });
+  const isFullyVerified = phoneVerified === true && identityVerified === "Verified" && propertyVerified === "Verified";
+
+  // Stamp (or clear) verifiedUntil as the three checks change, instead of
+  // storing a separate verification date — see VERIFICATION_VALIDITY_DAYS.
+  useEffect(() => {
+    if (isFullyVerified && !verifiedUntil) {
+      setValue("verifiedUntil", addDays(new Date(), VERIFICATION_VALIDITY_DAYS).toISOString(), { shouldDirty: true });
+    } else if (!isFullyVerified && verifiedUntil) {
+      setValue("verifiedUntil", null, { shouldDirty: true });
+    }
+  }, [isFullyVerified, verifiedUntil, setValue]);
 
   return (
     <div className="space-y-5">
@@ -56,7 +76,11 @@ export function VerificationStep() {
       </FormField>
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-foreground">Verification Checklist</p>
+        <p className="mb-1 text-sm font-semibold text-foreground">Verification Checklist</p>
+        <p className="mb-2 text-xs text-foreground-muted">
+          Verified listings get up to 3x more buyer trust and rank higher in search — completing all three checks below
+          confirms the phone, identity and property details behind this listing are genuine.
+        </p>
         <Card className="divide-y divide-border-subtle">
           <div className="flex items-center justify-between gap-4 p-4">
             <div>
@@ -124,6 +148,16 @@ export function VerificationStep() {
         </Card>
       </div>
 
+      {isFullyVerified && verifiedUntil && (
+        <div className="flex items-start gap-3 rounded-lg border border-success-100 bg-success-50 p-4 text-sm text-success-700 dark:border-success-500/20 dark:bg-success-500/10 dark:text-success-500">
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Valid until <span className="font-semibold">{formatDate(verifiedUntil)}</span> — re-verification required
+            after this date.
+          </p>
+        </div>
+      )}
+
       <p className="flex items-start gap-2 text-xs text-foreground-muted">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Only &quot;Verified&quot; and RERA badges are ever shown publicly — phone numbers and identity documents stay private to the admin team.
@@ -131,6 +165,8 @@ export function VerificationStep() {
 
       {/* Kept registered so the shared verificationStatus field stays valid, even though its own select is no longer shown. */}
       <input type="hidden" {...register("verificationStatus")} />
+      {/* Auto-managed above whenever all three checks are Verified — see VERIFICATION_VALIDITY_DAYS. */}
+      <input type="hidden" {...register("verifiedUntil")} />
     </div>
   );
 }

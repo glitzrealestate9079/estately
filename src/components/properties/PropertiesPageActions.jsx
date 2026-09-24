@@ -16,7 +16,7 @@ export function PropertiesPageActions() {
         Bulk Import
       </Button>
       <Button asChild>
-        <Link href="/properties/add">
+        <Link href="/admin/properties/add">
           <Plus className="h-4 w-4" />
           Add Property
         </Link>

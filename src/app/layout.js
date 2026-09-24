@@ -1,4 +1,4 @@
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -14,12 +14,20 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata = {
   title: {
-    default: "Estately — Real Estate Admin",
-    template: "%s · Estately Admin",
+    default: "Estately",
+    template: "%s · Estately",
   },
-  description: "Enterprise real estate management platform admin console.",
+  description:
+    "Estately is a trusted real estate marketplace for buying, renting, PG/co-living, commercial and plotted properties across India.",
+  metadataBase: new URL("https://www.estately.example"),
 };
 
 export const viewport = {
@@ -30,7 +38,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jakarta.variable} h-full antialiased`}
+      className={`${inter.variable} ${jakarta.variable} ${playfair.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

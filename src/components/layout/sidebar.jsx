@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, ChevronDown, ChevronsLeft, X } from "lucide-react";
+import { Building2, ChevronDown, ChevronsLeft, ExternalLink, X } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { NAVIGATION } from "@/config/navigation";
+import { NAVIGATION, PUBLIC_SITE_HREF } from "@/config/navigation";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ function isActiveHref(pathname, href) {
 
 function Logo({ collapsed }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 px-1">
+    <Link href="/admin/dashboard" className="flex items-center gap-2.5 px-1">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-navy-900 text-white shadow-sm">
         <Building2 className="h-5 w-5" />
       </span>
@@ -53,7 +53,7 @@ function NavAccordionItem({ item, pathname, onNavigate }) {
         <button
           type="button"
           onClick={() => setManuallyOpen(!open)}
-          className="shrink-0 rounded-md p-1.5 text-navy-400 hover:bg-white/10 hover:text-white"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-navy-400 hover:bg-white/10 hover:text-white"
           aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
           aria-expanded={open}
         >
@@ -171,6 +171,18 @@ export function Sidebar() {
         </div>
         <NavContent collapsed={collapsed} pathname={pathname} />
         <div className="border-t border-white/10 p-3">
+          <Link
+            href={PUBLIC_SITE_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-navy-300 transition-colors hover:bg-white/5 hover:text-white",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <ExternalLink className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed && <span>View Website</span>}
+          </Link>
           <button
             onClick={toggleCollapsed}
             className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-navy-300 transition-colors hover:bg-white/5 hover:text-white"
@@ -200,6 +212,17 @@ export function Sidebar() {
               </DialogPrimitive.Close>
             </div>
             <NavContent collapsed={false} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <div className="border-t border-white/10 p-3">
+              <Link
+                href={PUBLIC_SITE_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-navy-300 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                <ExternalLink className="h-[18px] w-[18px] shrink-0" />
+                <span>View Website</span>
+              </Link>
+            </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>

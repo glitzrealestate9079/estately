@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,6 @@ export function BannerFormModal({ open, onOpenChange, mode = "add", defaultValue
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(bannerSchema),
@@ -35,7 +34,7 @@ export function BannerFormModal({ open, onOpenChange, mode = "add", defaultValue
     }
   }, [open, defaultValues, reset]);
 
-  const imagePreview = watch("image");
+  const imagePreview = useWatch({ control, name: "image" });
 
   async function onValid(data) {
     setSubmitting(true);

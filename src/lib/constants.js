@@ -70,6 +70,11 @@ export const FACING_OPTIONS = [
   "South-West",
 ];
 
+// Property Details step — PG / Co-living specific fields
+export const SHARING_TYPE_OPTIONS = ["Single", "Double", "Triple", "Dormitory"];
+export const GENDER_PREFERENCE_OPTIONS = ["Male", "Female", "Co-ed"];
+export const MEAL_PLAN_OPTIONS = ["Included", "Not Included"];
+
 export const AMENITIES = [
   "Swimming Pool",
   "Gym",

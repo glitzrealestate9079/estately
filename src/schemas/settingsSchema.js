@@ -55,14 +55,36 @@ export const notificationSettingsSchema = yup.object({
   emailAlerts: yup.boolean().default(true),
   smsAlerts: yup.boolean().default(false),
   pushAlerts: yup.boolean().default(true),
+
+  // Transactional — default ON, these keep the user informed about their own activity.
+  propertyAlerts: yup.boolean().default(true),
+  visitUpdates: yup.boolean().default(true),
+  messageAlerts: yup.boolean().default(true),
+  listingUpdates: yup.boolean().default(true),
+  paymentAlerts: yup.boolean().default(true),
+
+  // Marketing — default OFF (weeklyDigest keeps its existing default).
+  priceChangeAlerts: yup.boolean().default(false),
+  savedSearchAlerts: yup.boolean().default(false),
   weeklyDigest: yup.boolean().default(true),
+  promotionalOffers: yup.boolean().default(false),
 });
 
 export const NOTIFICATION_SETTINGS_DEFAULTS = {
   emailAlerts: true,
   smsAlerts: false,
   pushAlerts: true,
+
+  propertyAlerts: true,
+  visitUpdates: true,
+  messageAlerts: true,
+  listingUpdates: true,
+  paymentAlerts: true,
+
+  priceChangeAlerts: false,
+  savedSearchAlerts: false,
   weeklyDigest: true,
+  promotionalOffers: false,
 };
 
 // ---- Email ----

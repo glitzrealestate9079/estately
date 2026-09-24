@@ -21,7 +21,7 @@ export function TopPropertiesTable() {
           <CardDescription>Ranked by views over the selected period</CardDescription>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/properties">View all</Link>
+          <Link href="/admin/properties">View all</Link>
         </Button>
       </CardHeader>
       <Table>
@@ -47,7 +47,7 @@ export function TopPropertiesTable() {
           {TOP_PERFORMING_PROPERTIES.map((property) => (
             <TableRow key={property.id}>
               <TableCell>
-                <Link href={`/properties/${property.id}`} className="flex items-center gap-3">
+                <Link href={`/admin/properties/${property.id}`} className="flex items-center gap-3">
                   <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-lg">
                     <PropertyImage src={property.images[0]} alt={property.title} />
                   </div>

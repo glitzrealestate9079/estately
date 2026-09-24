@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ export function ProfileForm() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     reset,
     formState: { errors, isDirty },
   } = useForm({
@@ -33,8 +33,8 @@ export function ProfileForm() {
     mode: "onBlur",
   });
 
-  const avatarUrl = watch("avatarUrl");
-  const name = watch("name");
+  const avatarUrl = useWatch({ control, name: "avatarUrl" });
+  const name = useWatch({ control, name: "name" });
 
   async function onValid(data) {
     setSubmitting(true);

@@ -16,8 +16,10 @@ import { RowActions } from "@/components/common/row-actions";
 import { PropertyImage } from "@/components/common/property-image";
 import { PropertyFilters } from "@/components/properties/property-filters";
 import { BulkActionsBar } from "@/components/properties/bulk-actions-bar";
+import { RejectReasonModal } from "@/components/properties/reject-reason-modal";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { PROPERTIES as INITIAL_PROPERTIES } from "@/data/properties";
+import { PROPERTY_REPORTS } from "@/data/property-reports";
 import { cn, formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
@@ -31,7 +33,17 @@ const DEFAULT_FILTERS = {
   verification: "all",
   minPrice: "",
   maxPrice: "",
+  verifiedOnly: false,
+  featured: false,
+  rera: false,
+  reported: false,
 };
+
+// Property IDs with at least one open (unresolved) report, for the "Reported"
+// quick filter chip.
+const REPORTED_PROPERTY_IDS = new Set(
+  PROPERTY_REPORTS.filter((report) => report.status === "Open").map((report) => report.propertyId)
+);
 
 function SortHeader({ label, sortKey, activeSort, onSort }) {
   const active = activeSort.key === sortKey;
@@ -55,6 +67,7 @@ export function PropertiesTable({ loading = false }) {
   const [selected, setSelected] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState(null);
 
   const filtered = useMemo(() => {
     let rows = properties;
@@ -76,6 +89,10 @@ export function PropertiesTable({ loading = false }) {
       rows = rows.filter((p) => (filters.verification === "Verified" ? p.verified : !p.verified));
     if (filters.minPrice) rows = rows.filter((p) => p.price >= Number(filters.minPrice));
     if (filters.maxPrice) rows = rows.filter((p) => p.price <= Number(filters.maxPrice));
+    if (filters.verifiedOnly) rows = rows.filter((p) => p.verified);
+    if (filters.featured) rows = rows.filter((p) => p.featured);
+    if (filters.rera) rows = rows.filter((p) => p.rera);
+    if (filters.reported) rows = rows.filter((p) => REPORTED_PROPERTY_IDS.has(p.id));
 
     const sorted = [...rows].sort((a, b) => {
       const { key, dir } = sort;
@@ -112,10 +129,16 @@ export function PropertiesTable({ loading = false }) {
     });
   }
 
-  function updateStatus(ids, status, message) {
-    setProperties((prev) => prev.map((p) => (ids.includes(p.id) ? { ...p, status } : p)));
+  function updateStatus(ids, status, message, extraFields = {}) {
+    setProperties((prev) => prev.map((p) => (ids.includes(p.id) ? { ...p, status, ...extraFields } : p)));
     toast.success(message);
     setSelected(new Set());
+  }
+
+  function confirmRowReject(reason) {
+    if (!rejectTarget) return;
+    updateStatus([rejectTarget.id], "Rejected", `${rejectTarget.title} rejected`, { rejectionReason: reason });
+    setRejectTarget(null);
   }
 
   function deleteProperties(ids, message) {
@@ -133,7 +156,9 @@ export function PropertiesTable({ loading = false }) {
         <BulkActionsBar
           count={selected.size}
           onApprove={() => updateStatus([...selected], "Active", `${selected.size} properties approved`)}
-          onReject={() => updateStatus([...selected], "Rejected", `${selected.size} properties rejected`)}
+          onReject={(reason) =>
+            updateStatus([...selected], "Rejected", `${selected.size} properties rejected`, { rejectionReason: reason })
+          }
           onDelete={() => setBulkDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
         />
@@ -185,7 +210,7 @@ export function PropertiesTable({ loading = false }) {
                   />
                 </TableCell>
                 <TableCell>
-                  <Link href={`/properties/${property.id}`} className="flex items-center gap-3">
+                  <Link href={`/admin/properties/${property.id}`} className="flex items-center gap-3">
                     <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-lg">
                       <PropertyImage src={property.images[0]} alt={property.title} />
                     </div>
@@ -200,7 +225,7 @@ export function PropertiesTable({ loading = false }) {
                           />
                         )}
                         {property.rera && (
-                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary-50 px-1.5 py-0 text-xs font-semibold text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">
                             RERA
                           </span>
                         )}
@@ -227,11 +252,11 @@ export function PropertiesTable({ loading = false }) {
                 <TableCell className="text-right">
                   <RowActions
                     actions={[
-                      { label: "View", icon: Eye, onClick: () => router.push(`/properties/${property.id}`) },
+                      { label: "View", icon: Eye, onClick: () => router.push(`/admin/properties/${property.id}`) },
                       {
                         label: "Edit",
                         icon: Pencil,
-                        onClick: () => router.push(`/properties/${property.id}/edit`),
+                        onClick: () => router.push(`/admin/properties/${property.id}/edit`),
                       },
                       {
                         label: "Approve",
@@ -241,7 +266,7 @@ export function PropertiesTable({ loading = false }) {
                       {
                         label: "Reject",
                         icon: XCircle,
-                        onClick: () => updateStatus([property.id], "Rejected", `${property.title} rejected`),
+                        onClick: () => setRejectTarget(property),
                       },
                       {
                         label: "Delete",
@@ -262,6 +287,15 @@ export function PropertiesTable({ loading = false }) {
       {pageRows.length > 0 && (
         <Pagination page={page} pageCount={pageCount} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
       )}
+
+      <RejectReasonModal
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject property"
+        description={`Let ${rejectTarget?.owner.name ?? "the owner"} know why this listing was rejected.`}
+        confirmLabel="Reject Property"
+        onConfirm={confirmRowReject}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

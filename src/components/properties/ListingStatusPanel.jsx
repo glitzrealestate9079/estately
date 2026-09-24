@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { RejectReasonModal } from "@/components/properties/reject-reason-modal";
 import { STATUS_STYLES, DEFAULT_STATUS_STYLE } from "@/lib/constants";
 import { LISTING_STATUS_META } from "@/lib/listing-status";
 import { cn } from "@/lib/utils";
@@ -20,15 +21,32 @@ function toButtonVariant(variant) {
 // left untouched.
 export function ListingStatusPanel({ property }) {
   const [status, setStatus] = useState((property.status || "").toLowerCase());
+  const [rejectionReason, setRejectionReason] = useState(property.rejectionReason || "");
+  const [rejectOpen, setRejectOpen] = useState(false);
   const meta = LISTING_STATUS_META[status];
   const style = STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE;
 
   if (!meta) return null;
 
   function handleAction(action) {
+    // Rejecting always goes through the shared reason-capture modal, same as
+    // the approvals queue and the properties table, so the reason is never
+    // dropped on the floor.
+    if (action.target === "rejected") {
+      setRejectOpen(true);
+      return;
+    }
     const nextMeta = LISTING_STATUS_META[action.target];
     setStatus(action.target);
+    setRejectionReason("");
     toast.success(`"${property.title}" moved to ${nextMeta?.label ?? action.target}`);
+  }
+
+  function confirmReject(reason) {
+    setStatus("rejected");
+    setRejectionReason(reason);
+    setRejectOpen(false);
+    toast.success(`"${property.title}" moved to ${LISTING_STATUS_META.rejected.label}`);
   }
 
   return (
@@ -43,6 +61,11 @@ export function ListingStatusPanel({ property }) {
         {meta.label}
       </span>
       <p className="max-w-xs text-left text-xs text-foreground-muted sm:text-right">{meta.description}</p>
+      {status === "rejected" && rejectionReason && (
+        <p className="max-w-xs text-left text-xs font-medium text-foreground sm:text-right">
+          Reason: {rejectionReason}
+        </p>
+      )}
       {meta.actions?.length > 0 && (
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {meta.actions.map((action) => (
@@ -58,6 +81,15 @@ export function ListingStatusPanel({ property }) {
           ))}
         </div>
       )}
+
+      <RejectReasonModal
+        open={rejectOpen}
+        onOpenChange={setRejectOpen}
+        title="Reject property"
+        description={`Let ${property.owner?.name ?? "the owner"} know why this listing was rejected.`}
+        confirmLabel="Reject Property"
+        onConfirm={confirmReject}
+      />
     </div>
   );
 }

@@ -38,6 +38,12 @@ export function formatDate(value, opts = {}) {
   }).format(date);
 }
 
+export function addDays(value, days) {
+  const date = typeof value === "string" ? new Date(value) : new Date(value.getTime());
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
 export function formatDateTime(value) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;

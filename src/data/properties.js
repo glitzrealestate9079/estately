@@ -1,4 +1,6 @@
 import { imageForProperty } from "@/data/property-images";
+import { addDays } from "@/lib/utils";
+import { VERIFICATION_VALIDITY_DAYS } from "@/schemas/propertySchema";
 
 const RAW_PROPERTIES = [
   { title: "Premium 3 BHK Apartment", type: "Apartment", listingType: "Sale", city: "Jaipur", locality: "Malviya Nagar", price: 12500000, beds: 3, baths: 3, area: 1850, status: "Active", featured: true, verified: true, owner: "Ramesh Agarwal", agent: "Kavita Singh" },
@@ -103,6 +105,10 @@ export const PROPERTIES = RAW_PROPERTIES.map((p, index) => {
     phoneVerified: true,
     identityVerified: p.verified ? "Verified" : "Pending",
     propertyVerified: p.verified ? "Verified" : "Pending",
+    // Verified listings were stamped valid for VERIFICATION_VALIDITY_DAYS from
+    // createdAt — some of these will already be in the past, which is what
+    // exercises the staleness indicator in VerificationChecklist.
+    verifiedUntil: p.verified ? addDays(createdAt, VERIFICATION_VALIDITY_DAYS).toISOString().slice(0, 10) : null,
     createdAt,
     updatedAt: createdAt,
   };

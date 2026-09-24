@@ -24,9 +24,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChartTooltip } from "@/components/dashboard/chart-tooltip";
 import { formatDate, formatNumber, initials } from "@/lib/utils";
+import { LEADS } from "@/data/leads";
+import { PROJECTS } from "@/data/projects";
 
-const LEAD_NAMES = ["Anjali Verma", "Manish Gupta", "Ritu Choudhary", "Sameer Khan", "Pooja Agarwal"];
-const LEAD_STATUSES = ["New", "Contacted", "Interested", "Negotiation", "Converted"];
 const MONTH_LABELS = ["Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"];
 const DOCUMENTS = [
   { label: "RERA Certificate.pdf", icon: FileCheck2 },
@@ -43,17 +43,18 @@ function seedFromId(id) {
   return Number(digits) || 1;
 }
 
-function buildLeads(seed, developer) {
-  const count = 3 + (seed % 3); // 3-5 leads
-  return Array.from({ length: count }, (_, i) => {
-    const s = seed + i;
-    return {
-      id: `LD-${developer.id}-${i}`,
-      name: LEAD_NAMES[(seed + i) % LEAD_NAMES.length],
-      status: LEAD_STATUSES[pseudoRandom(s, LEAD_STATUSES.length)],
-      date: `2026-${String(1 + ((seed + i) % 9)).padStart(2, "0")}-${String(1 + ((seed + i * 5) % 27)).padStart(2, "0")}`,
-    };
-  });
+// A developer's projects (src/data/projects.js) are the only real, joinable
+// link between a developer and a lead: leads have no developerId/projectId
+// field, only a free-text `location`. We match each of the developer's
+// project localities against that field, so the tab shows this developer's
+// actual leads instead of fabricated ones. Developers with no locality match
+// in the mock leads simply render an empty state.
+function buildLeads(developer) {
+  const localities = PROJECTS.filter((project) => project.developer === developer.name).map(
+    (project) => project.locality
+  );
+  if (!localities.length) return [];
+  return LEADS.filter((lead) => localities.some((locality) => lead.location.includes(locality)));
 }
 
 function buildInventory(seed, developer) {
@@ -86,7 +87,7 @@ function buildPerformance(seed, leadsCount) {
 
 export function DeveloperProfileTabs({ developer }) {
   const seed = seedFromId(developer.id);
-  const leads = buildLeads(seed, developer);
+  const leads = buildLeads(developer);
   const inventory = buildInventory(seed, developer);
   const performance = buildPerformance(seed, developer.leadsCount);
   const yearsActive = 2026 - developer.establishedYear;
@@ -237,24 +238,32 @@ export function DeveloperProfileTabs({ developer }) {
       </TabsContent>
 
       <TabsContent value="leads">
-        <Card className="divide-y divide-border-subtle">
-          {leads.map((lead) => (
-            <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback>{initials(lead.name)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{lead.name}</p>
-                  <p className="text-xs text-foreground-muted">Interested in {developer.name}&apos;s projects</p>
+        <Card className={leads.length ? "divide-y divide-border-subtle" : undefined}>
+          {!leads.length ? (
+            <EmptyState
+              icon={Users}
+              title="No leads yet"
+              description={`No leads have come in for ${developer.name}'s projects yet.`}
+            />
+          ) : (
+            leads.map((lead) => (
+              <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback>{initials(lead.name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{lead.name}</p>
+                    <p className="text-xs text-foreground-muted">{lead.interestedProperty}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-foreground-muted">{formatDate(lead.createdDate)}</span>
+                  <StatusBadge status={lead.status} />
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-foreground-muted">{formatDate(lead.date)}</span>
-                <StatusBadge status={lead.status} />
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </Card>
       </TabsContent>
 

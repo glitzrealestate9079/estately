@@ -18,14 +18,14 @@ export function ProjectCard({ project, onEdit, onDelete, onStatusChange }) {
   return (
     <Card hover className="animate-slide-up overflow-hidden">
       <div className="relative aspect-[16/10] overflow-hidden rounded-t-2xl">
-        <Link href={`/projects/${project.id}`}>
+        <Link href={`/admin/projects/${project.id}`}>
           <PropertyImage src={project.images[0]} alt={project.projectName} />
         </Link>
         <StatusBadge status={project.status} className="absolute left-3 top-3" />
-        <div className="absolute right-2 top-2">
+        <div className="absolute right-2 top-2 rounded-lg bg-white/80 backdrop-blur-sm dark:bg-navy-950/60">
           <RowActions
             actions={[
-              { label: "View", icon: Eye, onClick: () => router.push(`/projects/${project.id}`) },
+              { label: "View", icon: Eye, onClick: () => router.push(`/admin/projects/${project.id}`) },
               { label: "Edit", icon: Pencil, onClick: () => onEdit(project) },
               { label: "Delete", icon: Trash2, destructive: true, separatorBefore: true, onClick: () => onDelete(project) },
             ]}
@@ -35,7 +35,7 @@ export function ProjectCard({ project, onEdit, onDelete, onStatusChange }) {
 
       <CardContent className="space-y-3">
         <div>
-          <Link href={`/projects/${project.id}`}>
+          <Link href={`/admin/projects/${project.id}`}>
             <p className="truncate font-display text-base font-semibold text-foreground hover:text-primary-600">
               {project.projectName}
             </p>

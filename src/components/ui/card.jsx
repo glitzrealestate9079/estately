@@ -19,7 +19,7 @@ export function CardHeader({ className, ...props }) {
 
 export function CardTitle({ className, ...props }) {
   return (
-    <h3
+    <h2
       className={cn("font-display text-base font-semibold text-foreground", className)}
       {...props}
     />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +17,7 @@ import {
   User,
   UserPlus,
   Activity,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSidebar } from "@/components/layout/sidebar-context";
@@ -47,55 +49,79 @@ const NOTIFICATION_ICONS = {
 export function Topbar() {
   const { setMobileOpen } = useSidebar();
   const router = useRouter();
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length;
   const unreadMessages = MESSAGES.filter((m) => m.unread).length;
 
   function handleLogout() {
     toast.success("Signed out successfully");
-    router.push("/login");
+    router.push("/admin/login");
   }
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border-subtle bg-surface/80 px-4 backdrop-blur sm:px-6">
       <button
         onClick={() => setMobileOpen(true)}
-        className="rounded-lg p-2 text-foreground-muted hover:bg-surface-muted lg:hidden"
+        className={cn("rounded-lg p-2 text-foreground-muted hover:bg-surface-muted md:hidden", mobileSearchOpen && "hidden")}
         aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="hidden max-w-md flex-1 sm:block">
+      <div className="hidden max-w-md flex-1 md:block">
         <Input icon={Search} placeholder="Search properties, leads, agents…" aria-label="Search" />
       </div>
 
-      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+      {mobileSearchOpen && (
+        <div className="flex flex-1 items-center gap-2 md:hidden">
+          <Input icon={Search} placeholder="Search properties, leads, agents…" aria-label="Search" autoFocus />
+          <button
+            onClick={() => setMobileSearchOpen(false)}
+            className="rounded-lg p-2 text-foreground-muted hover:bg-surface-muted"
+            aria-label="Close search"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      <div className={cn("ml-auto items-center gap-1 sm:gap-2", mobileSearchOpen ? "hidden md:flex" : "flex")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Search"
+          onClick={() => setMobileSearchOpen(true)}
+        >
+          <Search className="h-[18px] w-[18px]" />
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="primary" size="sm" className="hidden sm:inline-flex">
-              <Plus className="h-4 w-4" />
-              Quick Add
-              <ChevronDown className="h-3.5 w-3.5" />
+            <Button variant="primary" size="icon" className="md:h-10 md:w-auto md:px-4" aria-label="Quick add">
+              <Plus className="h-[18px] w-[18px] md:h-4 md:w-4" />
+              <span className="hidden md:inline">Quick Add</span>
+              <ChevronDown className="hidden h-3.5 w-3.5 md:inline-block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild>
-              <Link href="/properties/add">
+              <Link href="/admin/properties/add">
                 <Building2 className="h-4 w-4" /> Add Property
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/projects?new=1">
+              <Link href="/admin/projects?new=1">
                 <FolderPlus className="h-4 w-4" /> Add Project
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/leads?new=1">
+              <Link href="/admin/leads?new=1">
                 <UserPlus className="h-4 w-4" /> Add Lead
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/agents?new=1">
+              <Link href="/admin/agents?new=1">
                 <User className="h-4 w-4" /> Add Agent
               </Link>
             </DropdownMenuItem>
@@ -131,7 +157,7 @@ export function Topbar() {
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/messages" className="justify-center text-primary-600">
+              <Link href="/admin/messages" className="justify-center text-primary-600">
                 View all messages
               </Link>
             </DropdownMenuItem>
@@ -172,14 +198,14 @@ export function Topbar() {
                   <span className="flex-1 space-y-0.5">
                     <span className="block text-sm font-medium leading-snug">{notification.title}</span>
                     <span className="block text-xs text-foreground-muted">{notification.description}</span>
-                    <span className="block text-[11px] text-foreground-muted/70">{notification.time}</span>
+                    <span className="block text-xs text-foreground-muted">{notification.time}</span>
                   </span>
                 </DropdownMenuItem>
               );
             })}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/notifications" className="justify-center text-primary-600">
+              <Link href="/admin/notifications" className="justify-center text-primary-600">
                 View all notifications
               </Link>
             </DropdownMenuItem>
@@ -193,28 +219,28 @@ export function Topbar() {
                 <AvatarImage src={CURRENT_USER.avatar} alt={CURRENT_USER.name} />
                 <AvatarFallback>{initials(CURRENT_USER.name)}</AvatarFallback>
               </Avatar>
-              <span className="hidden text-left sm:block">
+              <span className="hidden text-left md:block">
                 <span className="block text-sm font-medium leading-tight">{CURRENT_USER.name}</span>
                 <span className="block text-xs text-foreground-muted">{CURRENT_USER.role}</span>
               </span>
-              <ChevronDown className="hidden h-4 w-4 text-foreground-muted sm:block" />
+              <ChevronDown className="hidden h-4 w-4 text-foreground-muted md:block" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/settings/profile">
+              <Link href="/admin/settings/profile">
                 <User className="h-4 w-4" /> My Profile
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/settings">
+              <Link href="/admin/settings">
                 <Settings className="h-4 w-4" /> Account Settings
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/settings/activity">
+              <Link href="/admin/settings/activity">
                 <Activity className="h-4 w-4" /> Activity
               </Link>
             </DropdownMenuItem>

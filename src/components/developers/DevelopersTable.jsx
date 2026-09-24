@@ -214,7 +214,7 @@ export const DevelopersTable = forwardRef(function DevelopersTable({ loading = f
             {pageRows.map((developer) => (
               <TableRow key={developer.id}>
                 <TableCell>
-                  <Link href={`/developers/${developer.id}`} className="flex items-center gap-3">
+                  <Link href={`/admin/developers/${developer.id}`} className="flex items-center gap-3">
                     <Avatar>
                       <AvatarFallback>{initials(developer.name)}</AvatarFallback>
                     </Avatar>
@@ -242,7 +242,7 @@ export const DevelopersTable = forwardRef(function DevelopersTable({ loading = f
                 <TableCell className="text-right">
                   <RowActions
                     actions={[
-                      { label: "View", icon: Eye, onClick: () => router.push(`/developers/${developer.id}`) },
+                      { label: "View", icon: Eye, onClick: () => router.push(`/admin/developers/${developer.id}`) },
                       { label: "Edit", icon: Pencil, onClick: () => openEdit(developer) },
                       developer.status === "Active"
                         ? { label: "Deactivate", icon: PowerOff, onClick: () => toggleStatus(developer) }

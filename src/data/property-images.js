@@ -65,3 +65,8 @@ export function imageForProject(index = 0) {
   const pool = [...SKYLINE_IMAGES, ...APARTMENT_IMAGES, ...VILLA_IMAGES];
   return pool[index % pool.length];
 }
+
+export function imageForCity(index = 0) {
+  const pool = [...SKYLINE_IMAGES, ...VILLA_IMAGES, ...APARTMENT_IMAGES];
+  return pool[index % pool.length];
+}

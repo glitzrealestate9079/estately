@@ -2,47 +2,55 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Check, Moon, Palette, Sun, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useReducer, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { COLOR_THEMES, DEFAULT_COLOR_THEME, COLOR_THEME_STORAGE_KEY } from "@/config/color-themes";
 import { cn } from "@/lib/utils";
 
+function noopSubscribe() {
+  return () => {};
+}
+function useHasMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
+function readColorTheme() {
+  try {
+    return localStorage.getItem(COLOR_THEME_STORAGE_KEY) || DEFAULT_COLOR_THEME;
+  } catch {
+    return DEFAULT_COLOR_THEME;
+  }
+}
+
 export function ThemeCustomizer() {
   const [open, setOpen] = useState(false);
-  const [colorTheme, setColorTheme] = useState(DEFAULT_COLOR_THEME);
-  const [dark, setDark] = useState(false);
+  const mounted = useHasMounted();
+  const [, bump] = useReducer((c) => c + 1, 0);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    setDark(root.classList.contains("dark"));
-    try {
-      setColorTheme(localStorage.getItem(COLOR_THEME_STORAGE_KEY) || DEFAULT_COLOR_THEME);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const dark = mounted && document.documentElement.classList.contains("dark");
+  const colorTheme = mounted ? readColorTheme() : DEFAULT_COLOR_THEME;
 
   function applyColorTheme(id) {
-    setColorTheme(id);
     document.documentElement.setAttribute("data-color-theme", id);
     try {
       localStorage.setItem(COLOR_THEME_STORAGE_KEY, id);
     } catch {
       /* ignore */
     }
+    bump();
     const theme = COLOR_THEMES.find((t) => t.id === id);
     toast.success(`${theme?.label ?? "Theme"} applied as your admin theme`);
   }
 
   function toggleDark() {
     const next = !dark;
-    setDark(next);
     document.documentElement.classList.toggle("dark", next);
     try {
       localStorage.setItem("estately-theme", next ? "dark" : "light");
     } catch {
       /* ignore */
     }
+    bump();
   }
 
   return (

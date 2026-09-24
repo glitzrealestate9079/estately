@@ -19,7 +19,7 @@ export const SelectTrigger = forwardRef(({ className, error, children, ...props 
     )}
     {...props}
   >
-    {children}
+    <span className="min-w-0 flex gap-1 truncate text-left">{children}</span>
     <SelectPrimitive.Icon asChild>
       <ChevronDown className="h-4 w-4 shrink-0 text-foreground-muted" />
     </SelectPrimitive.Icon>

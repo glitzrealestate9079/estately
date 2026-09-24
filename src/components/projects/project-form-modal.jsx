@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Check, ImagePlus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ function ProjectImagesField({ value = [], onChange, error }) {
               <button
                 type="button"
                 onClick={() => removeAt(index)}
-                className="absolute right-1 top-1 rounded-full bg-navy-950/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute right-1 top-1 rounded-full bg-navy-950/70 p-1 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 aria-label={`Remove image ${index + 1}`}
               >
                 <X className="h-3.5 w-3.5" />
@@ -96,7 +96,6 @@ export function ProjectFormModal({ open, onOpenChange, mode = "add", defaultValu
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(projectSchema),
@@ -110,7 +109,7 @@ export function ProjectFormModal({ open, onOpenChange, mode = "add", defaultValu
     }
   }, [open, defaultValues, reset]);
 
-  const totalUnits = Number(watch("totalUnits")) || 0;
+  const totalUnits = Number(useWatch({ control, name: "totalUnits" })) || 0;
 
   async function onValid(data) {
     setSubmitting(true);
@@ -277,7 +276,7 @@ export function ProjectFormModal({ open, onOpenChange, mode = "add", defaultValu
                           type="button"
                           onClick={() => toggle(amenity)}
                           className={cn(
-                            "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
+                            "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors",
                             selected
                               ? "border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400"
                               : "border-border-subtle text-foreground hover:border-navy-300"
@@ -285,7 +284,7 @@ export function ProjectFormModal({ open, onOpenChange, mode = "add", defaultValu
                         >
                           <span
                             className={cn(
-                              "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                              "flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border",
                               selected ? "border-primary-600 bg-primary-600 text-white" : "border-border-subtle"
                             )}
                           >

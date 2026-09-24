@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { BedDouble, Bath, Ruler, MapPin } from "lucide-react";
+import { BedDouble, Bath, Ruler, MapPin, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { formatAreaWithUnit } from "@/lib/area-units";
@@ -77,7 +77,19 @@ export function PreviewStep() {
       </div>
 
       <div className="rounded-xl border border-border-subtle p-5">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground-muted">Owner Information</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground-muted">Description</p>
+        <p className="text-sm leading-relaxed text-foreground-muted">
+          {values.description || "No description added yet."}
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-warning-200 bg-warning-50/40 p-5 dark:border-warning-500/20 dark:bg-warning-500/5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">Owner Information</p>
+          <Badge variant="warning" className="gap-1">
+            <Lock className="h-3 w-3" /> Internal only — not visible to buyers
+          </Badge>
+        </div>
         <Row label="Owner Name" value={values.ownerName} />
         <Row label="Seller Type" value={values.sellerType} />
         <Row label="Phone" value={values.ownerPhone} />

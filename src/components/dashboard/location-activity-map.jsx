@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LOCATION_ACTIVITY } from "@/data/analytics";
@@ -67,16 +67,19 @@ const CITY_COLORS = Object.fromEntries(
 const RANKED = [...LOCATION_ACTIVITY].sort((a, b) => b.listings - a.listings).slice(0, 5);
 const MAX_LISTINGS = RANKED[0]?.listings ?? 1;
 
+function subscribeToDarkClass(callback) {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+function getDarkSnapshot() {
+  return document.documentElement.classList.contains("dark");
+}
+function getServerSnapshot() {
+  return false;
+}
 function useIsDark() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => {
-    const el = document.documentElement;
-    setDark(el.classList.contains("dark"));
-    const observer = new MutationObserver(() => setDark(el.classList.contains("dark")));
-    observer.observe(el, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-  return dark;
+  return useSyncExternalStore(subscribeToDarkClass, getDarkSnapshot, getServerSnapshot);
 }
 
 export function LocationActivityMap() {

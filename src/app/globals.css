@@ -203,6 +203,7 @@
 
   --font-sans: var(--font-inter);
   --font-display: var(--font-jakarta);
+  --font-serif: var(--font-playfair);
 
   --shadow-card: var(--shadow-card);
   --shadow-card-hover: var(--shadow-card-hover);
@@ -215,6 +216,8 @@
   --animate-scale-in: scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-shimmer: shimmer 1.8s ease-in-out infinite;
   --animate-pulse-ring: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-dropdown-in: dropdown-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-dropdown-item-in: dropdown-item-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -235,6 +238,14 @@
   @keyframes scale-in {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes dropdown-item-in {
+    from { opacity: 0; transform: translateX(-4px); }
+    to { opacity: 1; transform: translateX(0); }
   }
   @keyframes shimmer {
     0% { background-position: -400px 0; }

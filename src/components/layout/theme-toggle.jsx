@@ -1,25 +1,30 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useReducer, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 
-export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+function noopSubscribe() {
+  return () => {};
+}
+function useHasMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
 
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
+export function ThemeToggle() {
+  const mounted = useHasMounted();
+  const [, bump] = useReducer((c) => c + 1, 0);
+  const dark = mounted && document.documentElement.classList.contains("dark");
 
   function toggle() {
     const next = !dark;
-    setDark(next);
     document.documentElement.classList.toggle("dark", next);
     try {
       localStorage.setItem("estately-theme", next ? "dark" : "light");
     } catch {
       /* ignore */
     }
+    bump();
   }
 
   return (

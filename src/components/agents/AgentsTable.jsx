@@ -168,7 +168,7 @@ export function AgentsTable({ agents, onEdit, onDelete, onToggleStatus, loading 
             {pageRows.map((agent) => (
               <TableRow key={agent.id}>
                 <TableCell>
-                  <Link href={`/agents/${agent.id}`} className="flex items-center gap-3">
+                  <Link href={`/admin/agents/${agent.id}`} className="flex items-center gap-3">
                     <Avatar>
                       <AvatarImage src={agent.avatar} alt={agent.name} />
                       <AvatarFallback>{initials(agent.name)}</AvatarFallback>
@@ -199,7 +199,7 @@ export function AgentsTable({ agents, onEdit, onDelete, onToggleStatus, loading 
                 <TableCell className="text-right">
                   <RowActions
                     actions={[
-                      { label: "View Profile", icon: Eye, onClick: () => router.push(`/agents/${agent.id}`) },
+                      { label: "View Profile", icon: Eye, onClick: () => router.push(`/admin/agents/${agent.id}`) },
                       { label: "Edit", icon: Pencil, onClick: () => onEdit(agent) },
                       agent.status === "Active"
                         ? {

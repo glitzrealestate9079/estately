@@ -7,14 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { PROPERTY_TYPES, LISTING_TYPES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const STATUSES = ["Active", "Pending", "Sold", "Rented", "Rejected", "Draft"];
 const CITIES = ["Jaipur", "Gurugram", "Bengaluru", "Pune", "Mumbai", "Hyderabad", "Noida", "Chennai", "Ahmedabad", "Delhi NCR"];
 
-function FilterSelect({ value, onChange, placeholder, options }) {
+// Boolean/derived-flag toggles that make up the middle "quick chip" tier,
+// between the always-visible primary controls and the "More Filters" popover.
+const QUICK_FILTERS = [
+  { key: "verifiedOnly", label: "Verified only" },
+  { key: "featured", label: "Featured" },
+  { key: "rera", label: "RERA" },
+  { key: "reported", label: "Reported" },
+];
+
+function FilterSelect({ value, onChange, placeholder, options, label }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-full sm:w-40">
+      <SelectTrigger className="w-full sm:w-40" aria-label={label ?? placeholder}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -29,11 +39,41 @@ function FilterSelect({ value, onChange, placeholder, options }) {
   );
 }
 
+// Same rounded-pill toggle-button pattern already used for quick filters in
+// src/components/site/search/filter-form.jsx (ChipButton), kept local here
+// since this is the only other place that needs it.
+function QuickFilterChip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "border-primary-600 bg-primary-600 text-white"
+          : "border-border-subtle bg-surface text-foreground-muted hover:border-primary-300 hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function PropertyFilters({ filters, onChange, resultCount }) {
   const activeCount = Object.values(filters).filter((v) => v && v !== "all" && v !== "").length;
+  // Filters that live inside the "More Filters" popover — used for the
+  // trigger's badge count, so quick chips (already visible) don't get double
+  // counted as "more" filters.
+  const popoverKeys = ["listingType", "city", "verification", "minPrice", "maxPrice"];
+  const popoverActiveCount = popoverKeys.filter((key) => filters[key] && filters[key] !== "all").length;
 
   function set(key, value) {
     onChange({ ...filters, [key]: value });
+  }
+
+  function toggleQuickFilter(key) {
+    set(key, !filters[key]);
   }
 
   function clearAll() {
@@ -46,6 +86,10 @@ export function PropertyFilters({ filters, onChange, resultCount }) {
       verification: "all",
       minPrice: "",
       maxPrice: "",
+      verifiedOnly: false,
+      featured: false,
+      rera: false,
+      reported: false,
     });
   }
 
@@ -62,15 +106,27 @@ export function PropertyFilters({ filters, onChange, resultCount }) {
         </div>
         <FilterSelect value={filters.type} onChange={(v) => set("type", v)} placeholder="Property Type" options={PROPERTY_TYPES} />
         <FilterSelect value={filters.status} onChange={(v) => set("status", v)} placeholder="Status" options={STATUSES} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {QUICK_FILTERS.map((quickFilter) => (
+          <QuickFilterChip
+            key={quickFilter.key}
+            active={!!filters[quickFilter.key]}
+            onClick={() => toggleQuickFilter(quickFilter.key)}
+          >
+            {quickFilter.label}
+          </QuickFilterChip>
+        ))}
 
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline">
               <SlidersHorizontal className="h-4 w-4" />
               More Filters
-              {activeCount > 2 && (
+              {popoverActiveCount > 0 && (
                 <span className="ml-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
-                  {activeCount - 2}
+                  {popoverActiveCount}
                 </span>
               )}
             </Button>

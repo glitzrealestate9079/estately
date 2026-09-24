@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Building2, Calendar, IndianRupee, Mail, MapPin, Phone, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,10 +37,13 @@ function InfoRow({ icon: Icon, label, value }) {
 export function LeadDetailDrawer({ lead, onOpenChange, onStatusChange, onReassign, onSaveNotes }) {
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const leadKey = lead ? `${lead.id}:${lead.notes ?? ""}` : null;
+  const [lastLeadKey, setLastLeadKey] = useState(leadKey);
 
-  useEffect(() => {
+  if (leadKey !== lastLeadKey) {
+    setLastLeadKey(leadKey);
     setNotes(lead?.notes ?? "");
-  }, [lead?.id, lead?.notes]);
+  }
 
   if (!lead) return null;
 

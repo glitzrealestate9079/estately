@@ -1,32 +1,39 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useReducer, useState, useSyncExternalStore } from "react";
 
 const SidebarContext = createContext(null);
 
+function noopSubscribe() {
+  return () => {};
+}
+function useHasMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem("estately-sidebar-collapsed") === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function SidebarProvider({ children }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const mounted = useHasMounted();
+  const [, bump] = useReducer((c) => c + 1, 0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
+  const collapsed = mounted && readCollapsed();
+
+  function toggleCollapsed() {
+    const next = !collapsed;
     try {
-      const stored = localStorage.getItem("estately-sidebar-collapsed");
-      if (stored) setCollapsed(stored === "true");
+      localStorage.setItem("estately-sidebar-collapsed", String(next));
     } catch {
       /* ignore */
     }
-  }, []);
-
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("estately-sidebar-collapsed", String(next));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
+    bump();
   }
 
   return (
