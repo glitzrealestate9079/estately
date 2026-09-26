@@ -1,9 +1,25 @@
+import { DM_Sans, Manrope } from "next/font/google";
 import { SiteProvider } from "@/components/site/providers/site-provider";
-import { AuthGateModal } from "@/components/site/auth/auth-gate-modal";
-import { SiteHeader } from "@/components/site/layout/site-header";
-import { SiteFooter } from "@/components/site/layout/site-footer";
-import { MobileBottomNav } from "@/components/site/layout/mobile-bottom-nav";
+import { SiteChrome } from "@/components/site/layout/site-chrome";
 import { SplashScreen } from "@/components/site/layout/splash-screen";
+import "@/styles/site-template.css";
+import "bootstrap-icons/font/bootstrap-icons.min.css";
+
+// Ported design's own fonts (DM Sans body / Manrope headings) — separate
+// from the admin panel's Inter/Jakarta/Playfair, scoped to this layout only.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+});
 
 export const metadata = {
   title: {
@@ -17,14 +33,13 @@ export const metadata = {
 export default function SiteLayout({ children }) {
   return (
     <SiteProvider>
+      {/* Rendered outside .hp-app: it uses Tailwind classes, which the
+          site-template reset (higher cascade-layer priority) would zero out
+          if nested inside .hp-app. */}
       <SplashScreen />
-      <div className="flex min-h-screen flex-col bg-background">
-        <SiteHeader />
-        <main className="flex-1 pb-16 lg:pb-0">{children}</main>
-        <SiteFooter />
-        <MobileBottomNav />
+      <div className={`hp-app ${dmSans.variable} ${manrope.variable}`}>
+        <SiteChrome>{children}</SiteChrome>
       </div>
-      <AuthGateModal />
     </SiteProvider>
   );
 }

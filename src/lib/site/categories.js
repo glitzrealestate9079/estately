@@ -67,3 +67,11 @@ export const SEARCH_CATEGORY_LIST = CATEGORY_LIST.filter((c) => c.key !== "proje
 export function getCategory(key) {
   return CATEGORIES[key] ?? CATEGORIES.buy;
 }
+
+// Plots use the singular template-mapper key ("plot") the ported HomePlace
+// card components expect, even though the route/category key is "plots".
+export function getCategoryKeyForProperty(property) {
+  const match = SEARCH_CATEGORY_LIST.find((c) => c.matches(property));
+  const key = match?.key ?? "buy";
+  return key === "plots" ? "plot" : key;
+}

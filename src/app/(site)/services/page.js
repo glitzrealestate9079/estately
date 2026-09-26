@@ -1,94 +1,150 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Camera, Headphones, Rocket, Scale, Share2, Sofa, Star, Video, Wrench, Calculator } from "lucide-react";
+import { toast } from "sonner";
 import { EmiCalculator } from "@/components/site/property/emi-calculator";
-import { SectionHeading } from "@/components/site/ui/section-heading";
-import { RevealGroup, RevealItem } from "@/components/site/ui/reveal";
-import { Button } from "@/components/ui/button";
-import { SERVICES } from "@/data/services";
-import { FAQS } from "@/data/faqs";
-import { formatIndianCurrency } from "@/lib/site/format";
+import { useSite } from "@/components/site/providers/site-provider";
 
-// Icons aren't serializable across data boundaries, so services.js stores
-// only the icon's lucide-react name — resolved to a component right here.
-const SERVICE_ICON_MAP = { Camera, Rocket, Scale, Video, Star, Share2, Sofa, Headphones };
-
-export const metadata = {
-  title: "Services & Tools",
-  description: "Free EMI calculator plus seller add-on services like professional photography, listing boosts and legal assistance.",
-};
+const SERVICES = [
+  ["loan", "Home Loans", "bi-bank", "Compare home loan offers from partner banks and check eligibility.", "Request a callback", true],
+  ["emi", "EMI Calculator", "bi-calculator", "Estimate monthly payments for any property price.", "Open calculator", true],
+  ["valuation", "Property Valuation", "bi-graph-up", "An estimate based on recent comparable listings in your locality.", "Coming soon", false],
+  ["legal", "Legal Verification", "bi-file-earmark-check", "Title search and document review by empanelled lawyers.", "Coming soon", false],
+  ["agreement", "Rent Agreement", "bi-file-earmark-text", "Draft, e-stamp and sign your rent agreement online.", "Coming soon", false],
+  ["home", "Home Services", "bi-tools", "Packers & movers, painting, cleaning and repairs.", "Coming soon", false],
+  ["pm", "Property Management", "bi-building-gear", "Tenant finding, rent collection and maintenance for owners.", "Coming soon", false],
+];
 
 export default function ServicesPage() {
-  const generalFaqs = FAQS.filter((f) => f.category === "General").slice(0, 6);
+  const { mounted, auth } = useSite();
+  const [priceInput, setPriceInput] = useState("50,00,000");
+  const [callbackOpen, setCallbackOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+  const [phoneInvalid, setPhoneInvalid] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (window.location.hash === "#emi") {
+      setTimeout(() => document.getElementById("emi-calc")?.scrollIntoView(), 200);
+    }
+  }, []);
+
+  const price = Math.max(Number(priceInput.replace(/\D/g, "")) || 0, 100000);
+
+  function handleServiceClick(key) {
+    if (key === "emi") {
+      document.getElementById("emi-calc")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    if (key === "loan") {
+      if (mounted && auth.isAuthenticated) {
+        setName(auth.user.name ?? "");
+        setPhone((auth.user.phone ?? "").replace(/\D/g, "").slice(-10));
+      }
+      setCallbackOpen(true);
+    }
+  }
+
+  async function submitCallback() {
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      setPhoneInvalid(true);
+      return;
+    }
+    setSubmitting(true);
+    await new Promise((r) => setTimeout(r, 600));
+    setSubmitting(false);
+    setCallbackOpen(false);
+    toast.success("Callback requested", { description: "We'll call you within one working day." });
+  }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-16 px-4 py-10 sm:px-6 lg:px-8">
-      <section>
-        <SectionHeading
-          eyebrow="Free tool"
-          title="EMI Calculator"
-          description="Plan your home loan before you commit — instant, no sign-up required."
-          align="center"
-        />
-        <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-border-subtle bg-surface p-6 shadow-card sm:p-8">
-          <EmiCalculator />
+    <main className="container">
+      <div className="page-head">
+        <h1>Services</h1>
+        <p>Help with the steps around buying, renting and moving. Your property search stays front and centre — these are here when you need them.</p>
+      </div>
+
+      <div className="grid-3 mt-24">
+        {SERVICES.map(([key, title, icon, desc, cta, live]) => (
+          <div key={key} id={key} className="svc" style={{ flexDirection: "column", gap: 12 }}>
+            <div className="row" style={{ gap: 12, alignItems: "flex-start" }}>
+              <span className="ico"><i className={`bi ${icon}`} /></span>
+              <div><div className="t">{title}</div><div className="s">{desc}</div></div>
+            </div>
+            {live ? (
+              <button type="button" className="btn btn-secondary btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => handleServiceClick(key)}>{cta}</button>
+            ) : (
+              <span className="badge badge-sm" style={{ alignSelf: "flex-start" }}>Coming soon</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <section className="section" id="emi-calc">
+        <div className="card card-pad-lg">
+          <h2 className="h3 mb-16">EMI calculator</h2>
+          <div className="field mb-16" style={{ maxWidth: 280 }}>
+            <label className="label" htmlFor="emiPrice">Property price</label>
+            <div className="input-group">
+              <span className="addon">₹</span>
+              <input
+                id="emiPrice"
+                className="input"
+                inputMode="numeric"
+                value={priceInput}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setPriceInput(digits ? Number(digits).toLocaleString("en-IN") : "");
+                }}
+              />
+            </div>
+          </div>
+          <EmiCalculator price={price} />
         </div>
       </section>
 
-      <section>
-        <SectionHeading
-          eyebrow="For sellers"
-          title="Boost your listing"
-          description="Optional add-ons to help your property stand out and convert faster."
-        />
-        <RevealGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SERVICES.filter((s) => s.status === "Active").map((service) => {
-            const Icon = SERVICE_ICON_MAP[service.icon] ?? Wrench;
-            return (
-              <RevealItem key={service.id}>
-                <div className="flex h-full flex-col rounded-2xl border border-border-subtle bg-surface p-5 shadow-card">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <p className="mt-3 font-display text-sm font-semibold text-foreground">{service.name}</p>
-                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-foreground-muted">{service.description}</p>
-                  <div className="mt-4 flex items-center justify-between border-t border-border-subtle pt-3">
-                    <span className="font-display text-sm font-bold text-foreground">{formatIndianCurrency(service.price)}</span>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href="/post-property">Add to listing</Link>
-                    </Button>
+      <div className="mt-24">
+        <Link className="btn btn-primary btn-lg" href="/"><i className="bi bi-search" />Back to property search</Link>
+      </div>
+
+      {callbackOpen && (
+        <div className="modal-root">
+          <div className="modal-backdrop" onClick={() => setCallbackOpen(false)} />
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Home loan callback" style={{ "--mw": "440px" }}>
+            <div className="sheet-handle" />
+            <div className="modal-head">
+              <h3>Home loan callback</h3>
+              <button className="modal-x" aria-label="Close" onClick={() => setCallbackOpen(false)}><i className="bi bi-x-lg" /></button>
+            </div>
+            <div className="modal-body">
+              <div className="stack" style={{ "--stack": "14px" }}>
+                <div className="field">
+                  <label className="label" htmlFor="cb-n">Name</label>
+                  <input id="cb-n" className="input" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+                <div className={`field ${phoneInvalid ? "is-invalid" : ""}`}>
+                  <label className="label" htmlFor="cb-p">Mobile</label>
+                  <div className="input-group">
+                    <span className="addon">+91</span>
+                    <input id="cb-p" className="input" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setPhoneInvalid(false); }} />
                   </div>
                 </div>
-              </RevealItem>
-            );
-          })}
-        </RevealGroup>
-      </section>
-
-      <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div>
-          <SectionHeading eyebrow="Help center" title="Frequently asked questions" />
-          <div className="mt-6 space-y-3">
-            {generalFaqs.map((faq) => (
-              <details key={faq.id} className="group rounded-xl border border-border-subtle bg-surface p-4 transition-colors hover:bg-surface-muted">
-                <summary className="cursor-pointer list-none text-sm font-medium text-foreground marker:content-none">
-                  {faq.question}
-                </summary>
-                <p className="mt-2 text-sm leading-relaxed text-foreground-muted">{faq.answer}</p>
-              </details>
-            ))}
+                <div className="field">
+                  <label className="label" htmlFor="cb-a">Loan amount needed <span className="opt">(optional)</span></label>
+                  <input id="cb-a" className="input" placeholder="e.g. 40,00,000" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                </div>
+                <p className="xs muted">A loan advisor will call you. We never share your number with banks without your consent.</p>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className={`btn btn-primary btn-block btn-lg ${submitting ? "is-loading" : ""}`} onClick={submitCallback}>Request callback</button>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-start justify-center rounded-3xl bg-gradient-to-br from-primary-600 to-navy-900 p-8 text-white">
-          <Calculator className="h-9 w-9 text-primary-200" />
-          <p className="mt-4 font-display text-lg font-bold">Still have questions?</p>
-          <p className="mt-2 text-sm text-primary-100">
-            Our support team is available every day to help you buy, rent or list a property with confidence.
-          </p>
-          <Button asChild variant="secondary" className="mt-5">
-            <Link href="/blog">Read our guides</Link>
-          </Button>
-        </div>
-      </section>
-    </div>
+      )}
+    </main>
   );
 }

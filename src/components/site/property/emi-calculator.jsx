@@ -1,96 +1,48 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calculator } from "lucide-react";
-import { formatIndianCurrency } from "@/lib/site/format";
+import Link from "next/link";
+import { inr, num } from "@/lib/site/template/format";
 
-export function EmiCalculator({ defaultPrice = 5000000, className }) {
-  const [price, setPrice] = useState(defaultPrice);
-  const [downPaymentPct, setDownPaymentPct] = useState(20);
+// Ported from the prototype's emiHtml()/bindEmi() in property-view.js.
+export function EmiCalculator({ price }) {
+  const [down, setDown] = useState(20);
   const [rate, setRate] = useState(8.5);
-  const [tenure, setTenure] = useState(20);
+  const [years, setYears] = useState(20);
 
-  const { emi, totalInterest, totalRepayment, loanAmount } = useMemo(() => {
-    const principal = price * (1 - downPaymentPct / 100);
-    const monthlyRate = rate / 12 / 100;
-    const months = tenure * 12;
-    const factor = Math.pow(1 + monthlyRate, months);
-    const monthlyEmi = monthlyRate === 0 ? principal / months : (principal * monthlyRate * factor) / (factor - 1);
-    const repayment = monthlyEmi * months;
-    return {
-      emi: Math.round(monthlyEmi),
-      totalInterest: Math.round(repayment - principal),
-      totalRepayment: Math.round(repayment),
-      loanAmount: Math.round(principal),
-    };
-  }, [price, downPaymentPct, rate, tenure]);
+  const { emi, principal, totalInterest } = useMemo(() => {
+    const principal = price * (1 - down / 100);
+    const r = rate / 1200;
+    const n = years * 12;
+    const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    return { emi, principal, totalInterest: emi * n - principal };
+  }, [price, down, rate, years]);
 
   return (
-    <div className={className}>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <SliderField
-          label="Property Price"
-          value={price}
-          display={formatIndianCurrency(price)}
-          min={500000}
-          max={100000000}
-          step={100000}
-          onChange={setPrice}
-        />
-        <SliderField
-          label="Down Payment"
-          value={downPaymentPct}
-          display={`${downPaymentPct}% (${formatIndianCurrency(price * (downPaymentPct / 100))})`}
-          min={0}
-          max={80}
-          step={5}
-          onChange={setDownPaymentPct}
-        />
-        <SliderField label="Interest Rate" value={rate} display={`${rate}% p.a.`} min={6} max={14} step={0.1} onChange={setRate} />
-        <SliderField label="Loan Tenure" value={tenure} display={`${tenure} years`} min={1} max={30} step={1} onChange={setTenure} />
+    <>
+      <div className="emi-grid">
+        <div className="stack" style={{ "--stack": "18px" }}>
+          <div>
+            <div className="range-head"><span>Down payment</span><b>{down}% · {inr(price * down / 100)}</b></div>
+            <input className="range" type="range" min={10} max={60} step={5} value={down} onChange={(e) => setDown(+e.target.value)} aria-label="Down payment percent" />
+          </div>
+          <div>
+            <div className="range-head"><span>Interest rate</span><b>{rate.toFixed(1)}%</b></div>
+            <input className="range" type="range" min={7} max={12} step={0.1} value={rate} onChange={(e) => setRate(+e.target.value)} aria-label="Interest rate" />
+          </div>
+          <div>
+            <div className="range-head"><span>Loan tenure</span><b>{years} years</b></div>
+            <input className="range" type="range" min={5} max={30} step={1} value={years} onChange={(e) => setYears(+e.target.value)} aria-label="Loan tenure in years" />
+          </div>
+        </div>
+        <div className="emi-result">
+          <div className="small muted">Estimated monthly EMI</div>
+          <div className="price">₹{num(emi)}</div>
+          <div className="small muted mt-8">Loan {inr(principal)} · Total interest {inr(totalInterest)}</div>
+          <Link className="btn btn-secondary btn-sm mt-16" href="/services">Check loan eligibility</Link>
+        </div>
       </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-3 rounded-2xl bg-primary-50 p-5 dark:bg-primary-500/10 sm:grid-cols-4">
-        <Stat label="Loan Amount" value={formatIndianCurrency(loanAmount)} />
-        <Stat label="Monthly EMI" value={formatIndianCurrency(emi)} primary />
-        <Stat label="Total Interest" value={formatIndianCurrency(totalInterest)} />
-        <Stat label="Total Repayment" value={formatIndianCurrency(totalRepayment)} />
-      </div>
-      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-foreground-muted">
-        <Calculator className="h-3 w-3" /> Estimate only — actual EMI depends on your lender&apos;s terms and eligibility.
-      </p>
-    </div>
-  );
-}
-
-function SliderField({ label, value, display, min, max, step, onChange }) {
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <label className="text-xs font-medium text-foreground-muted">{label}</label>
-        <span className="text-sm font-semibold text-foreground">{display}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        aria-label={label}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-muted accent-[var(--color-primary-600)]"
-      />
-    </div>
-  );
-}
-
-function Stat({ label, value, primary }) {
-  return (
-    <div>
-      <p className="text-[11px] text-foreground-muted">{label}</p>
-      <p className={primary ? "font-display text-lg font-bold text-primary-700 dark:text-primary-400" : "font-display text-base font-semibold text-foreground"}>
-        {value}
-      </p>
-    </div>
+      <p className="xs muted mt-12"><i className="bi bi-info-circle" /> Indicative only. Actual EMI depends on the lender, your credit profile and fees.</p>
+    </>
   );
 }

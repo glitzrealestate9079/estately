@@ -1,60 +1,94 @@
 "use client";
 
 import { useState } from "react";
-import { ListFilter, Map as MapIcon, Rows3, BookmarkPlus } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { usePropertySearch } from "@/components/site/search/use-property-search";
-import { FilterSidebar } from "@/components/site/search/filter-sidebar";
 import { FilterDrawer } from "@/components/site/search/filter-drawer";
-import { SortMenu } from "@/components/site/search/sort-menu";
-import { SearchChips } from "@/components/site/search/search-chips";
 import { ResultsMap } from "@/components/site/search/results-map";
-import { EmptyResults } from "@/components/site/search/empty-results";
 import { PropertyCard } from "@/components/site/property/property-card";
-import { PropertyGridSkeleton } from "@/components/site/property/property-card-skeleton";
-import { Pagination } from "@/components/ui/pagination";
-import { Button } from "@/components/ui/button";
+import { LocationAutocomplete } from "@/components/site/home/location-autocomplete";
 import { useSite } from "@/components/site/providers/site-provider";
-import { RevealGroup, RevealItem } from "@/components/site/ui/reveal";
-import { getLocalityByName } from "@/lib/site/site-data";
-import { getCategory } from "@/lib/site/categories";
-import { cn } from "@/lib/utils";
+import { CATEGORIES, CATEGORY_LIST } from "@/lib/site/categories";
+import { toTemplateProperty } from "@/lib/site/template/property-mapper";
 
-const FILTER_PRIORITY = [
-  "locality",
-  "city",
-  "propertyType",
-  "bhk",
-  "minPrice",
-  "minArea",
-  "furnishing",
-  "possession",
-  "gender",
-  "roomType",
-  "commercialCategory",
-  "ownerOnly",
-  "verified",
-  "rera",
-  "parking",
-];
+const SORTS = {
+  relevance: "Relevance",
+  newest: "Recently updated",
+  "price-asc": "Price: low to high",
+  "price-desc": "Price: high to low",
+};
 
+const FILTER_LABELS = {
+  q: (v) => `"${v}"`,
+  propertyType: (v) => v,
+  bhk: (v) => `${v}${Number(v) >= 4 ? "+" : ""} BHK`,
+  minPrice: () => null,
+  maxPrice: () => null,
+  furnishing: (v) => v,
+  parking: () => "Parking",
+  verified: () => "Verified",
+  rera: () => "RERA",
+  ownerOnly: () => "Owner only",
+  gender: (v) => v,
+  roomType: (v) => v,
+  commercialCategory: (v) => v,
+  possession: (v) => v,
+  listingType: (v) => (v === "Rent" ? "Lease / rent" : "Buy"),
+  plotType: (v) => v,
+};
+
+function chipsFor(filters, removeFilter) {
+  const chips = [];
+  Object.entries(filters).forEach(([key, value]) => {
+    if (key === "city" || key === "locality") {
+      if (value) chips.push({ key, label: value, remove: () => removeFilter(key) });
+      return;
+    }
+    if (key === "minPrice" || key === "maxPrice") return;
+    if (value === "any" || value === "" || value === false) return;
+    const label = FILTER_LABELS[key]?.(value) ?? String(value);
+    if (label) chips.push({ key, label, remove: () => removeFilter(key) });
+  });
+  if (filters.minPrice || filters.maxPrice) {
+    const label = filters.minPrice && filters.maxPrice
+      ? `₹${filters.minPrice} – ₹${filters.maxPrice}`
+      : filters.minPrice
+      ? `₹${filters.minPrice}+`
+      : `Up to ₹${filters.maxPrice}`;
+    chips.push({ key: "price", label, remove: () => removeFilter("minPrice") || removeFilter("maxPrice") });
+  }
+  return chips;
+}
+
+// Ported from the prototype's search.html/search.js chrome (compact search
+// bar, breadcrumbs, results head, filter drawer, list + map column) — the
+// underlying data/filter engine is this app's existing usePropertySearch()
+// hook (src/data/properties.js), not the prototype's own mock data/filters.
 export function PropertySearchExperience({ categoryKey }) {
-  const category = getCategory(categoryKey);
+  const router = useRouter();
+  const category = CATEGORIES[categoryKey] ?? CATEGORIES.buy;
   const search = usePropertySearch(category.key);
   const { requireAuth, addSavedSearch } = useSite();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [layout, setLayout] = useState("list");
+  const [view, setView] = useState("list");
+  const [locInput, setLocInput] = useState(search.filters.locality || search.filters.city || "");
 
   const title = buildTitle(category, search.filters);
-  const localityIntel =
-    search.filters.locality && search.filters.city
-      ? getLocalityByName(search.filters.city, search.filters.locality)?.intel
-      : null;
 
-  function clearOneFilter() {
-    const key = FILTER_PRIORITY.find((k) => search.filters[k] && search.filters[k] !== "any");
-    if (key) search.removeFilter(key);
-    else search.resetFilters();
+  function handleCompactSearchSubmit(e) {
+    e.preventDefault();
+    const typed = locInput.trim();
+    if (typed) search.setFilters({ q: typed, city: "", locality: "" });
+  }
+
+  function handleLocationSelect(s) {
+    search.setFilters({ city: s.cityName ?? "", locality: s.localityName ?? "", q: "" });
+  }
+
+  function handleCategoryChange(newKey) {
+    router.push(newKey === "search" ? "/search" : CATEGORIES[newKey].href);
   }
 
   function handleSaveSearch() {
@@ -67,144 +101,154 @@ export function PropertySearchExperience({ categoryKey }) {
     );
   }
 
-  function handleFocusLocality(locality, city) {
-    search.setFilters({ locality, city });
-    setLayout("list");
-    toast.success(`Showing properties in ${locality}`);
-  }
+  const chips = chipsFor(search.filters, search.removeFilter);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
-          <p className="mt-1 text-sm text-foreground-muted">
-            {search.total} {search.total === 1 ? "property" : "properties"} found
-            {localityIntel && (
-              <span>
-                {" "}
-                · ₹{new Intl.NumberFormat("en-IN").format(localityIntel.avgPricePerSqft)}/sq.ft avg · updated{" "}
-                {localityIntel.dataPeriod}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="hidden items-center gap-2 lg:flex">
-          <Button variant="outline" size="sm" onClick={handleSaveSearch}>
-            <BookmarkPlus className="h-3.5 w-3.5" /> Save Search
-          </Button>
-          <SortMenu value={search.sortKey} onChange={search.setSortKey} />
-          <ViewToggle layout={layout} setLayout={setLayout} />
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <SearchChips filters={search.filters} removeFilter={search.removeFilter} resetFilters={search.resetFilters} />
-      </div>
-
-      {/* Mobile action bar */}
-      <div className="mb-4 grid grid-cols-3 gap-2 lg:hidden">
-        <Button variant="outline" size="sm" onClick={() => setDrawerOpen(true)}>
-          <ListFilter className="h-4 w-4" />
-          Filters {search.activeFilterCount > 0 && `(${search.activeFilterCount})`}
-        </Button>
-        <SortMenu value={search.sortKey} onChange={search.setSortKey} className="h-8" />
-        <Button variant="outline" size="sm" onClick={() => setLayout(layout === "map" ? "list" : "map")}>
-          <MapIcon className="h-4 w-4" /> {layout === "map" ? "List" : "Map"}
-        </Button>
-      </div>
-
-      <div className="flex gap-6">
-        <FilterSidebar
-          category={category}
-          filters={search.filters}
-          setFilters={search.setFilters}
-          resetFilters={search.resetFilters}
-          activeFilterCount={search.activeFilterCount}
-        />
-
-        <div className="min-w-0 flex-1">
-          {search.total === 0 ? (
-            <EmptyResults onClearOne={clearOneFilter} onReset={search.resetFilters} hasFilters={search.activeFilterCount > 0} />
-          ) : layout === "map" ? (
-            <ResultsMap properties={search.allFiltered} onFocusLocality={handleFocusLocality} />
-          ) : layout === "split" ? (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_1fr]">
-              <ResultsGrid results={search.results} compact />
-              <ResultsMap properties={search.allFiltered} onFocusLocality={handleFocusLocality} />
+    <>
+      <div className="results-top">
+        <div className="container">
+          <form className="compact-search" onSubmit={handleCompactSearchSubmit}>
+            <div className="cs-box">
+              <select className="select cs-cat" value={category.key} onChange={(e) => handleCategoryChange(e.target.value)} aria-label="Category">
+                {CATEGORY_LIST.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+              <div className="cs-loc">
+                <i className="bi bi-geo-alt" />
+                <LocationAutocomplete
+                  value={locInput}
+                  onChange={setLocInput}
+                  onSelect={handleLocationSelect}
+                  placeholder="Locality, project, landmark or city"
+                />
+              </div>
             </div>
-          ) : (
-            <ResultsGrid results={search.results} />
-          )}
-
-          {search.total > 0 && layout !== "map" && (
-            <Pagination
-              page={search.page}
-              pageCount={search.pageCount}
-              pageSize={search.pageSize}
-              total={search.total}
-              onPageChange={search.setPage}
-              className="mt-6 rounded-2xl border border-border-subtle bg-surface"
-            />
-          )}
+            <button className="btn btn-primary" type="submit" style={{ height: 46 }}>
+              <i className="bi bi-search" /><span className="hide-mobile">Search</span>
+            </button>
+            <button className="btn btn-outline btn-save-search" type="button" style={{ height: 46 }} onClick={handleSaveSearch}>
+              <i className="bi bi-bookmark" /><span>Save search</span>
+            </button>
+          </form>
         </div>
       </div>
+
+      <main className="container">
+        <nav className="crumbs" aria-label="Breadcrumb">
+          <Link href="/">Home</Link>
+          <i className="bi bi-chevron-right" />
+          {search.filters.city ? (
+            <>
+              <Link href={`${category.href}?city=${encodeURIComponent(search.filters.city)}`}>{search.filters.city}</Link>
+              <i className="bi bi-chevron-right" />
+              <span>{category.label}</span>
+            </>
+          ) : (
+            <span>{category.label}</span>
+          )}
+        </nav>
+
+        <div className="results-head">
+          <div>
+            <h1>{title}</h1>
+            <div className="count">{search.total.toLocaleString("en-IN")} {category.key === "pg" ? "PGs" : "properties"}</div>
+          </div>
+          <div className="row sort-desktop">
+            <button
+              className={`btn btn-outline btn-filters hide-tablet ${search.activeFilterCount ? "is-active" : ""}`}
+              type="button"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <i className="bi bi-sliders" />Filters
+              {search.activeFilterCount > 0 && <span className="fb-count">{search.activeFilterCount}</span>}
+            </button>
+            <label className="small muted nowrap" htmlFor="sortSel">Sort</label>
+            <select id="sortSel" className="select" style={{ height: 38, width: "auto", fontSize: 13.5, fontWeight: 600 }} value={search.sortKey} onChange={(e) => search.setSortKey(e.target.value)}>
+              {Object.entries(SORTS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <div className="seg hide-tablet" aria-label="Layout">
+              <button type="button" className={view === "split" ? "is-active" : ""} title="List and map" onClick={() => setView("split")}>
+                <i className="bi bi-layout-split" />Map
+              </button>
+              <button type="button" className={view === "list" ? "is-active" : ""} title="List only" onClick={() => setView("list")}>
+                <i className="bi bi-list-ul" />List
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className={`results-layout ${view === "list" ? "no-map" : ""}`}>
+          <section className="list-col" aria-live="polite">
+            {chips.length > 0 && (
+              <div className="active-chips">
+                {chips.map((c) => (
+                  <button key={c.key} className="chip chip-remove" onClick={c.remove}>{c.label}<i className="bi bi-x" /></button>
+                ))}
+                {chips.length > 1 && <button className="btn-link small" style={{ marginLeft: 4 }} onClick={search.resetFilters}>Clear all</button>}
+              </div>
+            )}
+
+            {search.total === 0 ? (
+              <div className="state">
+                <i className="bi bi-house-slash state-ico" />
+                <h3>No {category.key === "pg" ? "PGs" : "properties"} match these filters</h3>
+                <p className="muted">Try removing a filter or widening your budget.</p>
+                <button className="btn btn-outline" onClick={search.resetFilters}>Clear all filters</button>
+              </div>
+            ) : (
+              <>
+                <div className="results-list">
+                  {search.results.map((property) => (
+                    <PropertyCard key={property.id} property={toTemplateProperty(property, categoryKey === "plots" ? "plot" : categoryKey)} layout="list" />
+                  ))}
+                </div>
+                {search.pageCount > 1 && (
+                  <div className="pagination">
+                    <button disabled={search.page === 1} onClick={() => search.setPage(search.page - 1)} aria-label="Previous"><i className="bi bi-chevron-left" /></button>
+                    {Array.from({ length: search.pageCount }, (_, i) => (
+                      <button key={i} className={search.page === i + 1 ? "is-active" : ""} onClick={() => search.setPage(i + 1)}>{i + 1}</button>
+                    ))}
+                    <button disabled={search.page === search.pageCount} onClick={() => search.setPage(search.page + 1)} aria-label="Next"><i className="bi bi-chevron-right" /></button>
+                    <span className="small muted" style={{ width: "100%", textAlign: "center", marginTop: 6 }}>
+                      Showing {(search.page - 1) * search.pageSize + 1}–{Math.min(search.page * search.pageSize, search.total)} of {search.total}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
+          {view === "split" && (
+            <div className="map-col">
+              <ResultsMap properties={search.allFiltered} onFocusLocality={(locality, city) => search.setFilters({ locality, city })} />
+            </div>
+          )}
+        </div>
+      </main>
 
       <FilterDrawer
         open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onClose={() => setDrawerOpen(false)}
         category={category}
         filters={search.filters}
         setFilters={search.setFilters}
         resetFilters={search.resetFilters}
+        activeFilterCount={search.activeFilterCount}
         resultCount={search.total}
       />
-    </div>
-  );
-}
 
-function ResultsGrid({ results, compact = false }) {
-  return (
-    <RevealGroup
-      className={cn("grid grid-cols-1 gap-5 sm:grid-cols-2", !compact && "xl:grid-cols-3")}
-    >
-      {results.map((property) => (
-        <RevealItem key={property.id}>
-          <PropertyCard property={property} />
-        </RevealItem>
-      ))}
-    </RevealGroup>
-  );
-}
-
-function ViewToggle({ layout, setLayout }) {
-  return (
-    <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-1">
-      {[
-        { key: "list", icon: Rows3, label: "List" },
-        { key: "split", icon: ListFilter, label: "List + Map" },
-        { key: "map", icon: MapIcon, label: "Map" },
-      ].map((option) => (
-        <button
-          key={option.key}
-          onClick={() => setLayout(option.key)}
-          title={option.label}
-          className={cn(
-            "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-muted",
-            layout === option.key ? "bg-surface text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground"
-          )}
-        >
-          <option.icon className="h-3.5 w-3.5" />
-        </button>
-      ))}
-    </div>
+      <button className="btn btn-primary map-toggle-fab" type="button" onClick={() => setView(view === "split" ? "list" : "split")}>
+        <i className={`bi ${view === "split" ? "bi-list-ul" : "bi-map"}`} /><span>{view === "split" ? "List" : "Map"}</span>
+      </button>
+    </>
   );
 }
 
 function buildTitle(category, filters) {
   const bhkPart = filters.bhk !== "any" ? `${filters.bhk}${Number(filters.bhk) >= 4 ? "+" : ""} BHK ` : "";
-  const typePart = filters.propertyType !== "any" ? filters.propertyType : category.propertyTypes.length === 1 ? category.propertyTypes[0] : "Properties";
-  const actionPart = category.key === "buy" ? "for Sale" : category.key === "rent" ? "for Rent" : category.key === "pg" ? "" : "";
+  const typePart = filters.propertyType !== "any" ? filters.propertyType : category.propertyTypes.length === 1 ? category.propertyTypes[0] : category.label;
   const wherePart = filters.locality ? `in ${filters.locality}, ${filters.city}` : filters.city ? `in ${filters.city}` : "in India";
-  return [bhkPart + typePart, actionPart, wherePart].filter(Boolean).join(" ");
+  return `${bhkPart}${typePart} ${wherePart}`;
 }

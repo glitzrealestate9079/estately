@@ -101,6 +101,15 @@ export function BlogFormModal({ open, onOpenChange, mode = "add", defaultValues,
               />
             </FormField>
           </div>
+
+          <FormField
+            label="Article body"
+            error={errors.body?.message}
+            htmlFor="body"
+            hint={'Plain text. Start a line with "## " for a heading, "> " for a pull-quote — blank lines separate paragraphs.'}
+          >
+            <Textarea id="body" rows={12} placeholder="## First heading&#10;&#10;Opening paragraph…" error={!!errors.body} {...register("body")} />
+          </FormField>
         </ModalBody>
 
         <ModalFooter>

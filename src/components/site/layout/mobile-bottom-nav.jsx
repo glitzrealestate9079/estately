@@ -1,56 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Heart, PlusCircle, User } from "lucide-react";
 import { useSite } from "@/components/site/providers/site-provider";
-import { cn } from "@/lib/utils";
+import { MobileSearchOverlay } from "@/components/site/home/mobile-search-overlay";
 
-const ITEMS = [
-  { key: "home", label: "Home", href: "/", icon: Home },
-  { key: "search", label: "Search", href: "/buy", icon: Search },
-  { key: "saved", label: "Saved", href: "/saved", icon: Heart },
-  { key: "post", label: "Post", href: "/post-property", icon: PlusCircle },
-  { key: "account", label: "Account", href: "/account", icon: User },
-];
+// Ported from the prototype's mountBottomNav() in app.js — same 5 items the
+// product spec calls for (Home, Search, Saved, Post, Account). "Search"
+// opens the same quick-search overlay as the prototype's openSearchOverlay().
+function activeKeyFor(pathname) {
+  if (pathname === "/") return "home";
+  if (pathname.startsWith("/search")) return "search";
+  if (pathname.startsWith("/saved")) return "saved";
+  if (pathname.startsWith("/post-property")) return "post";
+  if (pathname.startsWith("/dashboard")) return "account";
+  return null;
+}
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const { savedIds, mounted } = useSite();
+  const { mounted, savedIds, auth, openAuthGate } = useSite();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const active = activeKeyFor(pathname);
+  const savedCount = mounted ? savedIds.length : 0;
+  const user = mounted && auth.isAuthenticated ? auth.user : null;
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle bg-surface/95 backdrop-blur-lg lg:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      <div className="grid grid-cols-5">
-        {ITEMS.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          const showBadge = item.key === "saved" && mounted && savedIds.length > 0;
-          return (
-            <Link
-              key={item.key}
-              href={item.href}
-              className="relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium"
-            >
-              <span className={cn("relative flex h-6 w-6 items-center justify-center", active ? "text-primary-600 dark:text-primary-400" : "text-foreground-muted")}>
-                <item.icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 2} />
-                {showBadge && (
-                  <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-error-600 text-[9px] text-white">
-                    {savedIds.length > 9 ? "9+" : savedIds.length}
-                  </span>
-                )}
-              </span>
-              <span className={cn(active ? "text-primary-600 dark:text-primary-400" : "text-foreground-muted")}>
-                {item.label}
-              </span>
-              {active && (
-                <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary-600 dark:bg-primary-400" />
-              )}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      <nav className="bottom-nav" aria-label="Mobile">
+        <Link href="/" className={active === "home" ? "is-active" : ""}>
+          <i className={`bi bi-house${active === "home" ? "-fill" : ""}`} />Home
+        </Link>
+        <button className={active === "search" ? "is-active" : ""} onClick={() => setSearchOpen(true)}>
+          <i className="bi bi-search" />Search
+        </button>
+        <Link href="/saved" className={active === "saved" ? "is-active" : ""}>
+          <i className={`bi bi-heart${active === "saved" ? "-fill" : ""}`} />Saved
+          {savedCount > 0 && <span className="count">{savedCount}</span>}
+        </Link>
+        <Link href="/post-property" className={active === "post" ? "is-active" : ""}>
+          <span className="post-ico"><i className="bi bi-plus-lg" /></span>Post
+        </Link>
+        {user ? (
+          <Link href="/dashboard" className={active === "account" ? "is-active" : ""}>
+            <i className={`bi bi-person${active === "account" ? "-fill" : ""}`} />Account
+          </Link>
+        ) : (
+          <button onClick={() => openAuthGate(null)}>
+            <i className="bi bi-person" />Account
+          </button>
+        )}
+      </nav>
+      {searchOpen && <MobileSearchOverlay onClose={() => setSearchOpen(false)} />}
+    </>
   );
 }

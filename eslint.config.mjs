@@ -10,6 +10,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Reference-only static prototype being ported into this app — not part
+    // of the Next.js build, not meant to be linted/fixed in place.
+    "Real Estate Project/**",
   ]),
 ]);
 

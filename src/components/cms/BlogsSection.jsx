@@ -98,6 +98,7 @@ export function BlogsSection() {
           coverImage: editTarget.coverImage,
           author: editTarget.author,
           status: editTarget.status,
+          body: editTarget.body ?? "",
         }
       : BLOG_DEFAULT_VALUES;
 

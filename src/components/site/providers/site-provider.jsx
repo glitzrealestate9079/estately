@@ -11,6 +11,7 @@ const LS_KEYS = {
   auth: "estately_site_auth",
   savedSearches: "estately_site_saved_searches",
   myListings: "estately_site_my_listings",
+  myProjects: "estately_site_my_projects",
 };
 
 function readLS(key, fallback) {
@@ -58,6 +59,7 @@ export function SiteProvider({ children }) {
   const recentSearches = useMemo(() => (mounted ? readLS(LS_KEYS.recent, []) : []), [mounted, version]);
   const savedSearches = useMemo(() => (mounted ? readLS(LS_KEYS.savedSearches, []) : []), [mounted, version]);
   const myListings = useMemo(() => (mounted ? readLS(LS_KEYS.myListings, []) : []), [mounted, version]);
+  const myProjects = useMemo(() => (mounted ? readLS(LS_KEYS.myProjects, []) : []), [mounted, version]);
   const auth = useMemo(() => {
     if (!mounted) return { isAuthenticated: false, user: null };
     const saved = readLS(LS_KEYS.auth, null);
@@ -141,16 +143,30 @@ export function SiteProvider({ children }) {
     [bump]
   );
 
+  // Marks a saved search as "seen" by resetting its resultCount baseline to
+  // the current live match count — the "N new" badge is the delta between
+  // this baseline and the live count on each render.
+  const markSavedSearchSeen = useCallback(
+    (id, resultCount) => {
+      const current = readLS(LS_KEYS.savedSearches, []);
+      writeLS(LS_KEYS.savedSearches, current.map((s) => (s.id === id ? { ...s, resultCount } : s)));
+      bump();
+    },
+    [bump]
+  );
+
   const addListing = useCallback(
     (listing) => {
       const current = readLS(LS_KEYS.myListings, []);
+      const today = new Date().toISOString().slice(0, 10);
       const created = {
         id: `MY-${Date.now()}`,
         status: "Active",
         views: 0,
         enquiries: 0,
         saves: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: today,
+        updatedAt: today,
         ...listing,
       };
       writeLS(LS_KEYS.myListings, [created, ...current]);
@@ -164,6 +180,30 @@ export function SiteProvider({ children }) {
     (id, status) => {
       const current = readLS(LS_KEYS.myListings, []);
       writeLS(LS_KEYS.myListings, current.map((l) => (l.id === id ? { ...l, status } : l)));
+      bump();
+    },
+    [bump]
+  );
+
+  // Builder/Developer → "List New Project" — a parallel, project-shaped
+  // store (myListings is properties-only; see build-listing.js).
+  const addProject = useCallback(
+    (project) => {
+      const current = readLS(LS_KEYS.myProjects, []);
+      writeLS(LS_KEYS.myProjects, [project, ...current]);
+      bump();
+      return project;
+    },
+    [bump]
+  );
+
+  // "Confirm still available at this price" (listing-detail) resets the
+  // freshness clock without changing status.
+  const touchListing = useCallback(
+    (id) => {
+      const current = readLS(LS_KEYS.myListings, []);
+      const today = new Date().toISOString().slice(0, 10);
+      writeLS(LS_KEYS.myListings, current.map((l) => (l.id === id ? { ...l, updatedAt: today } : l)));
       bump();
     },
     [bump]
@@ -235,10 +275,14 @@ export function SiteProvider({ children }) {
       addSavedSearch,
       removeSavedSearch,
       updateSavedSearchAlert,
+      markSavedSearchSeen,
       myListings,
       addListing,
       updateListingStatus,
+      touchListing,
       removeListing,
+      myProjects,
+      addProject,
       auth,
       login,
       logout,
@@ -261,10 +305,14 @@ export function SiteProvider({ children }) {
       addSavedSearch,
       removeSavedSearch,
       updateSavedSearchAlert,
+      markSavedSearchSeen,
       myListings,
       addListing,
       updateListingStatus,
+      touchListing,
       removeListing,
+      myProjects,
+      addProject,
       auth,
       login,
       logout,

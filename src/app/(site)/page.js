@@ -1,297 +1,302 @@
 import Link from "next/link";
-import {
-  Building2,
-  Compass,
-  FileSearch,
-  Landmark,
-  MessageCircleHeart,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
-import { SearchHero } from "@/components/site/search/search-hero";
-import { HeroSlider } from "@/components/site/home/hero-slider";
-import { OwnerCtaCard } from "@/components/site/home/owner-cta-card";
-import { PropertyCard } from "@/components/site/property/property-card";
+import { HeroSection } from "@/components/site/home/hero-section";
+import { FeaturedSection } from "@/components/site/home/featured-section";
+import { LocalityCard } from "@/components/site/locality/locality-card";
 import { ProjectCard } from "@/components/site/project/project-card";
-import { LocalityCard, CityCard } from "@/components/site/locality/locality-card";
-import { SectionHeading } from "@/components/site/ui/section-heading";
-import { Reveal, RevealGroup, RevealItem } from "@/components/site/ui/reveal";
-import { Button } from "@/components/ui/button";
+import { Scroller } from "@/components/site/ui/scroller";
+import { LIVE_PROPERTIES, getPopularCities, getPopularLocalities } from "@/lib/site/site-data";
+import { CATEGORIES } from "@/lib/site/categories";
 import { PROJECTS } from "@/data/projects";
-import { SEARCH_CATEGORY_LIST } from "@/lib/site/categories";
-import {
-  getFeaturedProperties,
-  getOwnerProperties,
-  getPopularCities,
-  getPopularLocalities,
-  getRecentProperties,
-} from "@/lib/site/site-data";
+import { BLOGS } from "@/data/blogs";
+import { toTemplateProperty } from "@/lib/site/template/property-mapper";
+import { toTemplateProject } from "@/lib/site/template/project-mapper";
+import { toTemplateLocality } from "@/lib/site/template/locality-mapper";
+import { toTemplateBlog } from "@/lib/site/template/blog-mapper";
+import { daysAgo } from "@/lib/site/derived";
+import { imageForProperty } from "@/data/property-images";
 
-const DIFFERENTIATORS = [
-  {
-    icon: ShieldCheck,
-    title: "Verification you can trust",
-    description:
-      "Verified, RERA and owner badges are separate, honest signals — never one generic green tick. You always know what's actually been checked.",
-  },
-  {
-    icon: Compass,
-    title: "Locality intelligence, not guesswork",
-    description:
-      "Price trends, rent ranges and nearby infrastructure for every locality — with the data period and last-updated date shown up front.",
-  },
-  {
-    icon: MessageCircleHeart,
-    title: "Low-friction enquiry",
-    description:
-      "One enquiry, pre-filled with listing context. No retyping details the platform already knows about the property.",
-  },
-  {
-    icon: FileSearch,
-    title: "Built for real decisions",
-    description:
-      "Compare up to 4 homes side-by-side, save shortlists instantly, and schedule visits without losing your place in the search.",
-  },
+export const metadata = {
+  title: "Buy, Rent & Sell Property in India",
+  description: "Search verified homes, PGs, plots, commercial spaces and new projects across India.",
+};
+
+const FEATURED_POOL_KEYS = { buy: "buy", rent: "rent", pg: "pg", commercial: "commercial", plot: "plots" };
+
+function featuredPool(categoryKey) {
+  const category = CATEGORIES[categoryKey];
+  return LIVE_PROPERTIES.filter((p) => category.matches(p))
+    .sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || daysAgo(a.updatedAt) - daysAgo(b.updatedAt))
+    .slice(0, 8)
+    .map((p) => toTemplateProperty(p, categoryKey));
+}
+
+const TYPE_EXPLORE = [
+  { title: "Apartments", route: "/buy?propertyType=Apartment", type: "Apartment", sub: "Ready & under-construction flats" },
+  { title: "Villas", route: "/buy?propertyType=Villa", type: "Villa", sub: "Private homes with gardens" },
+  { title: "Independent Houses", route: "/buy?propertyType=Independent House", type: "Independent House", sub: "Standalone homes, resale & new" },
+  { title: "Plots", route: "/plots", type: "Plot", sub: "Land for residential & commercial use" },
+  { title: "Commercial", route: "/commercial", type: "Commercial", sub: "Offices, shops & warehouses" },
+  { title: "PG", route: "/pg", type: "PG / Co-living", sub: "Beds for students & professionals" },
 ];
 
+const NEEDS = [
+  ["Buy a Home", "bi-house-check", "/buy", "Resale & new homes"],
+  ["Find Rental", "bi-key", "/rent", "Flats & houses"],
+  ["Find a PG", "bi-people", "/pg", "Beds from ₹5,000"],
+  ["Find a Plot", "bi-bounding-box-circles", "/plots", "Residential & land"],
+  ["Find Office", "bi-briefcase", "/commercial?propertyType=Office Space", "Offices & coworking"],
+  ["Explore New Projects", "bi-buildings", "/projects", "Launches & RERA info"],
+];
+
+const SERVICE_TEASERS = [
+  ["Home Loan", "bi-bank", "Compare home loan offers from leading partner banks in one place and check your eligibility before you apply.", "/services#loan", "Compare offers"],
+  ["EMI Calculator", "bi-calculator", "Work out your monthly EMI in seconds by adjusting the loan amount, tenure and interest rate.", "/services#emi", "Calculate EMI"],
+  ["Rent Agreement", "bi-file-earmark-text", "Create a legally valid rent agreement online and e-stamp it without visiting an office.", "/services", "Create agreement"],
+];
+
+function topLocalitiesLabel(list) {
+  const counts = new Map();
+  list.forEach((p) => counts.set(p.location.locality, (counts.get(p.location.locality) ?? 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([l]) => l).join(", ") || "Multiple cities";
+}
+
 export default function HomePage() {
-  const featured = getFeaturedProperties(8);
-  const recent = getRecentProperties(8);
-  const ownerProperties = getOwnerProperties(6);
-  const popularLocalities = getPopularLocalities(8);
-  const popularCities = getPopularCities(10);
-  const newProjects = [...PROJECTS].slice(0, 6);
+  const cities = getPopularCities(20);
+  const localities = getPopularLocalities(8).map(toTemplateLocality);
+  const projects = PROJECTS.slice(0, 8).map(toTemplateProject);
+  const blogs = BLOGS.filter((b) => b.status === "Published").slice(0, 4).map(toTemplateBlog);
+
+  const pools = Object.fromEntries(Object.entries(FEATURED_POOL_KEYS).map(([k, catKey]) => [k, featuredPool(catKey)]));
+
+  const byType = (type) => LIVE_PROPERTIES.filter((p) => p.type === type);
+  const plots = LIVE_PROPERTIES.filter((p) => p.type === "Plot");
+  const commercial = LIVE_PROPERTIES.filter((p) => CATEGORIES.commercial.matches(p));
+  const pg = LIVE_PROPERTIES.filter((p) => CATEGORIES.pg.matches(p));
+  const typeLists = {
+    Apartment: byType("Apartment"),
+    Villa: byType("Villa"),
+    "Independent House": byType("Independent House"),
+    Plot: plots,
+    Commercial: commercial,
+    "PG / Co-living": pg,
+  };
+
+  const readyApartments = LIVE_PROPERTIES.filter(
+    (p) => p.type === "Apartment" && p.listingType === "Sale" && p.pricePerSqft
+  );
+  const avgPsf = readyApartments.length
+    ? Math.round(readyApartments.reduce((sum, p) => sum + p.pricePerSqft, 0) / readyApartments.length)
+    : 0;
+  const rent2bhk = LIVE_PROPERTIES.filter((p) => p.listingType === "Rent" && p.bedrooms === 2)
+    .map((p) => p.price)
+    .sort((a, b) => a - b);
+  const quartile = (arr, f) => arr[Math.floor((arr.length - 1) * f)] ?? 0;
+  const trendPts = [0.94, 0.955, 0.965, 0.975, 0.99, 1].map((f) => Math.round(avgPsf * f));
+  const totalListings = LIVE_PROPERTIES.length;
 
   return (
-    <div>
-      {/* ---------------------------------------------------------------- */}
-      {/* Hero                                                              */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="relative overflow-hidden">
-        <HeroSlider />
-        <div className="absolute inset-0 bg-gradient-to-b from-navy-950/80 via-navy-950/60 to-navy-950/90" />
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-background" />
+    <main>
+      <HeroSection />
 
-        <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 sm:pb-28 sm:pt-24 lg:px-8">
-          <Reveal className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-primary-300" /> Trusted by 12,000+ verified listings across India
-            </span>
-            <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Find your next place, with confidence
-            </h1>
-            <p className="mt-4 text-base text-navy-200 sm:text-lg">
-              Search verified properties for sale, rent, PG, commercial and plots — compare, save and
-              connect directly with owners, agents and builders.
-            </p>
-          </Reveal>
-
-          <Reveal delay={0.1} className="mx-auto mt-8 max-w-4xl">
-            <SearchHero />
-          </Reveal>
-
-          <Reveal delay={0.2} className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-3 text-center sm:gap-4">
-            {[
-              { value: "12,800+", label: "Properties" },
-              { value: "2,400+", label: "Agents & Builders" },
-              { value: "35+", label: "Cities Covered" },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl border border-white/15 bg-white/10 px-2 py-4 backdrop-blur-md sm:px-4 sm:py-5"
-              >
-                <p className="font-display text-xl font-bold text-white sm:text-3xl">{stat.value}</p>
-                <p className="mt-1 text-[11px] font-medium text-navy-100 sm:text-sm">{stat.label}</p>
-              </div>
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">Popular localities</h2>
+              <p>Average prices from live listings on Estately.</p>
+            </div>
+            <Link className="see-all" href="/search">All localities <i className="bi bi-arrow-right" /></Link>
+          </div>
+          <Scroller>
+            {localities.map((l) => (
+              <LocalityCard key={l.slug} locality={l} />
             ))}
-          </Reveal>
+          </Scroller>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-16 px-4 py-16 sm:space-y-20 sm:px-6 sm:py-20 lg:px-8">
-        {/* ---------------------------------------------------------------- */}
-        {/* Category quick links                                            */}
-        {/* ---------------------------------------------------------------- */}
-        <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {SEARCH_CATEGORY_LIST.map((category) => (
-            <RevealItem key={category.key}>
-              <Link
-                href={category.href}
-                className="flex h-full flex-col items-center gap-2.5 rounded-2xl border border-border-subtle bg-surface p-5 text-center shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400">
-                  <category.icon className="h-5 w-5" />
-                </span>
-                <span className="text-sm font-semibold text-foreground">{category.label}</span>
-              </Link>
-            </RevealItem>
-          ))}
-          <RevealItem>
-            <Link
-              href="/services"
-              className="flex h-full flex-col items-center gap-2.5 rounded-2xl border border-dashed border-border-subtle bg-surface-muted p-5 text-center transition-all duration-300 hover:-translate-y-1"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface text-foreground-muted">
-                <Landmark className="h-5 w-5" />
-              </span>
-              <span className="text-sm font-semibold text-foreground">Services</span>
-            </Link>
-          </RevealItem>
-        </RevealGroup>
+      <FeaturedSection pools={pools} />
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Popular localities                                              */}
-        {/* ---------------------------------------------------------------- */}
-        <section>
-          <SectionHeading
-            eyebrow="Where people are looking"
-            title="Popular localities"
-            description="Real demand hotspots based on live search and enquiry activity."
-            action={{ label: "Explore all cities", href: "/city/jaipur" }}
-          />
-          <RevealGroup className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {popularLocalities.map((locality) => (
-              <RevealItem key={locality.id}>
-                <LocalityCard locality={locality} />
-              </RevealItem>
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">New projects</h2>
+              <p>RERA details are shown as provided by the developer.</p>
+            </div>
+            <Link className="see-all" href="/projects">All projects <i className="bi bi-arrow-right" /></Link>
+          </div>
+          <Scroller>
+            {projects.map((p) => (
+              <ProjectCard key={p.slug} project={p} />
             ))}
-          </RevealGroup>
-        </section>
+          </Scroller>
+        </div>
+      </section>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Featured properties                                            */}
-        {/* ---------------------------------------------------------------- */}
-        <section>
-          <SectionHeading
-            eyebrow="Handpicked for you"
-            title="Featured properties"
-            description="Sponsored placements — clearly labelled, never mixed up with verification."
-            action={{ label: "View all in Buy", href: "/buy" }}
-          />
-          <RevealGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {featured.map((property) => (
-              <RevealItem key={property.id}>
-                <PropertyCard property={property} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* New projects                                                    */}
-        {/* ---------------------------------------------------------------- */}
-        <section>
-          <SectionHeading
-            eyebrow="Fresh inventory"
-            title="New & upcoming projects"
-            description="Launch-stage and under-construction developments from trusted builders."
-            action={{ label: "View all projects", href: "/projects" }}
-          />
-          <RevealGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {newProjects.map((project) => (
-              <RevealItem key={project.id}>
-                <ProjectCard project={project} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Why Estately                                                    */}
-        {/* ---------------------------------------------------------------- */}
-        <section className="rounded-3xl bg-navy-950 px-6 py-14 sm:px-10">
-          <SectionHeading
-            eyebrow="Why Estately"
-            title="Decision support, not just more listings"
-            description="We compete on trust and clarity — not on who shows the most properties."
-            align="center"
-            className="text-white [&_p]:text-navy-300 [&_h2]:text-white"
-          />
-          <RevealGroup className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {DIFFERENTIATORS.map((item) => (
-              <RevealItem key={item.title}>
-                <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-5">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/20 text-primary-300">
-                    <item.icon className="h-5 w-5" />
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">Explore by property type</h2>
+              <p>Browse listings by the kind of space you need, with the busiest localities for each.</p>
+            </div>
+            <Link className="see-all" href="/search">View all properties <i className="bi bi-arrow-right" /></Link>
+          </div>
+          <div className="type-grid">
+            {TYPE_EXPLORE.map((t) => {
+              const list = typeLists[t.type] ?? [];
+              return (
+                <Link key={t.title} className="type-card" href={t.route}>
+                  <span className="type-img" style={{ backgroundImage: `url('${imageForProperty(t.type, 0)}')` }} />
+                  <span className="type-top">
+                    <span className="type-count"><i className="bi bi-house-door" />{list.length} listings</span>
+                    <span className="type-go" aria-hidden="true"><i className="bi bi-arrow-up-right" /></span>
                   </span>
-                  <p className="mt-4 font-display text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-navy-300">{item.description}</p>
+                  <span className="type-body">
+                    <span className="t">{t.title}</span>
+                    <span className="d">{t.sub}</span>
+                    <span className="l"><i className="bi bi-geo-alt-fill" />{topLocalitiesLabel(list)}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container">
+          <div className="section-head"><h2 className="h2">What are you looking for?</h2></div>
+          <div className="tile-grid">
+            {NEEDS.map(([t, icon, href, sub]) => (
+              <Link key={t} className="tile" href={href}>
+                <span className="ico ico-accent"><i className={`bi ${icon}`} /></span>
+                <span className="t">{t}</span>
+                <span className="s">{sub}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section market-band">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">India market snapshot</h2>
+              <p>Based on active Estately listings. Not a valuation.</p>
+            </div>
+            <Link className="see-all" href="/search">Browse listings <i className="bi bi-arrow-right" /></Link>
+          </div>
+          <div className="market-layout">
+            <div
+              className="market-visual"
+              style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=70")' }}
+            >
+              <div className="market-visual-body">
+                <span className="mv-city"><i className="bi bi-geo-alt-fill" />Pan-India</span>
+                <h3>The property market at a glance</h3>
+                <div className="mv-stats">
+                  {[[totalListings.toLocaleString("en-IN"), "Active listings"], [cities.length, "Cities covered"], ["+6.0%", "Price growth"]].map(([v, k]) => (
+                    <div key={k}><strong>{v}</strong><span>{k}</span></div>
+                  ))}
                 </div>
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Recently added                                                  */}
-        {/* ---------------------------------------------------------------- */}
-        <section>
-          <SectionHeading
-            eyebrow="Just listed"
-            title="Recently added properties"
-            action={{ label: "View all", href: "/buy?sort=newest" }}
-          />
-          <RevealGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {recent.map((property) => (
-              <RevealItem key={property.id}>
-                <PropertyCard property={property} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Owner properties + CTA                                          */}
-        {/* ---------------------------------------------------------------- */}
-        <section className="grid grid-cols-1 relative gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <SectionHeading eyebrow="No brokerage" title="Direct from owners" action={{ label: "See all", href: "/buy?ownerOnly=true" }} />
-            <RevealGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {ownerProperties.slice(0, 4).map((property) => (
-                <RevealItem key={property.id}>
-                  <PropertyCard property={property} />
-                </RevealItem>
-              ))}
-            </RevealGroup>
+              </div>
+            </div>
+            <div className="market-cards">
+              <div className="insight">
+                <span className="ins-ico"><i className="bi bi-cash-stack" /></span>
+                <div className="k">Average sale price</div>
+                <div className="v">₹{avgPsf.toLocaleString("en-IN")}<span className="small muted" style={{ fontWeight: 600 }}>/sq.ft</span></div>
+                <div className="trend-up"><i className="bi bi-arrow-up-right" /> 6.0% vs. last year</div>
+              </div>
+              <div className="insight">
+                <span className="ins-ico"><i className="bi bi-key" /></span>
+                <div className="k">Typical 2 BHK rent</div>
+                <div className="v">₹{quartile(rent2bhk, 0.25).toLocaleString("en-IN")} – ₹{quartile(rent2bhk, 0.75).toLocaleString("en-IN")}<span className="small muted" style={{ fontWeight: 600 }}>/month</span></div>
+                <div className="small muted">Middle 50% of asking rents</div>
+              </div>
+              <div className="insight insight-chart">
+                <div className="k"><span className="ins-ico sm"><i className="bi bi-bar-chart-line" /></span>Price trend · avg ₹/sq.ft</div>
+                <div className="bar-chart" style={{ height: 96 }} role="img" aria-label="Average sale price per square foot trend">
+                  {trendPts.map((v, i) => (
+                    <div key={i} className={`bar ${i === 5 ? "is-current" : ""}`} title={`₹${v.toLocaleString("en-IN")}/sq.ft`}>
+                      {(i === 0 || i === 5) && <span className="val">₹{(v / 1000).toFixed(1)}k</span>}
+                      <span className="b" style={{ height: `${((v - trendPts[0] * 0.9) / (trendPts[5] - trendPts[0] * 0.9)) * 70}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="between xs muted"><span>Last year</span><span>Now</span></div>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <Reveal direction="right" className="h-full relative">
-            <OwnerCtaCard />
-          </Reveal>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Explore cities                                                  */}
-        {/* ---------------------------------------------------------------- */}
-        <section>
-          <SectionHeading eyebrow="Pan-India coverage" title="Explore cities" />
-          <RevealGroup className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {popularCities.map((city, index) => (
-              <RevealItem key={city.id}>
-                <CityCard city={city} index={index} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Tools teaser                                                    */}
-        {/* ---------------------------------------------------------------- */}
-        <Reveal className="flex flex-col items-center gap-6 rounded-3xl border border-border-subtle bg-surface p-10 text-center shadow-card sm:flex-row sm:text-left">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400">
-            <Building2 className="h-7 w-7" />
-          </span>
-          <div className="flex-1">
-            <p className="font-display text-lg font-bold text-foreground">Plan your purchase with our free tools</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              EMI calculator, rent-vs-buy comparison and locality price insights — all in one place.
-            </p>
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">Insights &amp; guides</h2>
+              <p>Buying tips, locality reviews and market news.</p>
+            </div>
+            <Link className="see-all" href="/blog">All articles <i className="bi bi-arrow-right" /></Link>
           </div>
-          <Button asChild variant="outline">
-            <Link href="/services">Explore tools</Link>
-          </Button>
-        </Reveal>
-      </div>
-    </div>
+          {blogs.length > 0 && (
+            <div className="blog-layout">
+              <Link className="blog-feature" href={`/blog/${blogs[0].slug}`}>
+                <span className="blog-img" style={{ backgroundImage: `url('${blogs[0].img}')` }} />
+                <span className="blog-open" aria-hidden="true"><i className="bi bi-arrow-up-right" /></span>
+                <span className="blog-feature-body">
+                  <span className="blog-tag"><i className="bi bi-graph-up-arrow" />{blogs[0].cat}</span>
+                  <span className="t">{blogs[0].title}</span>
+                  <span className="d">{blogs[0].excerpt}</span>
+                  <span className="blog-author">
+                    <span className="av">{blogs[0].author.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+                    <span className="who"><strong>{blogs[0].author.name}</strong><span>{blogs[0].date} · {blogs[0].read} min read</span></span>
+                  </span>
+                </span>
+              </Link>
+              <div className="blog-list">
+                {blogs.slice(1).map((b) => (
+                  <Link key={b.slug} className="blog-row" href={`/blog/${b.slug}`}>
+                    <span className="blog-thumb">
+                      <span className="blog-img" style={{ backgroundImage: `url('${b.img}')` }} />
+                      <span className="blog-open" aria-hidden="true"><i className="bi bi-arrow-up-right" /></span>
+                    </span>
+                    <span className="blog-body">
+                      <span className={`blog-cat tone-${b.tone}`}>{b.cat}</span>
+                      <span className="t">{b.title}</span>
+                      <span className="d">{b.excerpt}</span>
+                      <span className="blog-meta"><span className="by">{b.author.name}</span><span className="dot" /><span>{b.date}</span><span className="dot" /><span>{b.read} min read</span></span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div><h2 className="h2">Services for your move</h2></div>
+            <Link className="see-all" href="/services">All services <i className="bi bi-arrow-right" /></Link>
+          </div>
+          <div className="grid-3">
+            {SERVICE_TEASERS.map(([t, icon, desc, href, cta]) => (
+              <div key={t} className="svc-card">
+                <span className="ico"><i className={`bi ${icon}`} /></span>
+                <h3>{t}</h3>
+                <p>{desc}</p>
+                <Link className="svc-link" href={href}>{cta}<i className="bi bi-arrow-right" /></Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

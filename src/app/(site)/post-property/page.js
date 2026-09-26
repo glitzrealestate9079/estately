@@ -6,15 +6,5 @@ export const metadata = {
 };
 
 export default function PostPropertyPage() {
-  return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 text-center">
-        <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">Post Your Property</h1>
-        <p className="mt-2 text-sm text-foreground-muted">
-          Reach thousands of active buyers and tenants — free for individual owners.
-        </p>
-      </div>
-      <PostPropertyWizard />
-    </div>
-  );
+  return <PostPropertyWizard />;
 }

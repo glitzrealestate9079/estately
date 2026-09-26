@@ -35,7 +35,6 @@ export const COMMERCIAL_IMAGES = [
 
 export const PLOT_IMAGES = [
   u("photo-1500382017468-9049fed747ef"),
-  u("photo-1560472354-b33ff0c44a43"),
   u("photo-1449157291145-7efd050a4d0e"),
 ];
 

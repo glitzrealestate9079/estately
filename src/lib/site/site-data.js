@@ -8,6 +8,7 @@ import {
   derivePgGender,
   derivePgRoomType,
   deriveCommercialCategory,
+  derivePlotType,
 } from "@/lib/site/derived";
 
 // Only listings an admin has actually published should ever reach a visitor —
@@ -38,6 +39,13 @@ const FLAT_LOCATIONS_CITIES = LOCATIONS.flatMap((state) =>
 function findLocationsCity(cityName) {
   const aliased = CITY_NAME_ALIASES[cityName] ?? cityName;
   return FLAT_LOCATIONS_CITIES.find((c) => c.name === aliased) ?? null;
+}
+
+// Post-property wizard's Location step shows the state read-only once a city
+// is picked (matches the original prototype's fixed "Rajasthan" field, made
+// city-aware since this app spans multiple states).
+export function getStateForCity(cityName) {
+  return findLocationsCity(cityName)?.stateName ?? null;
 }
 
 function findLocationsLocality(cityName, localityName) {
@@ -125,8 +133,22 @@ export function getLocalitiesForCity(cityId) {
   return PUBLIC_LOCALITIES.filter((l) => l.cityId === cityId);
 }
 
+// The admin location dataset has no lat/lng to compute a real distance from,
+// so "distance" here is a deterministic, presentation-only pseudo-value
+// (stable per locality pair, not used for anything beyond display/sort) —
+// same approach as src/lib/site/derived.js's other synthesized fields.
+function pseudoDistanceKm(a, b) {
+  let h = 0;
+  const s = `${a.id}|${b.id}`;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return 0.8 + (h % 42) / 10;
+}
+
 export function getNearbyLocalities(locality, limit = 4) {
-  return PUBLIC_LOCALITIES.filter((l) => l.cityId === locality.cityId && l.id !== locality.id).slice(0, limit);
+  return PUBLIC_LOCALITIES.filter((l) => l.cityId === locality.cityId && l.id !== locality.id)
+    .map((l) => ({ ...l, distanceKm: pseudoDistanceKm(locality, l) }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, limit);
 }
 
 export function getPopularCities(limit = 8) {
@@ -209,10 +231,15 @@ export function sortProperties(list, sortKey = "relevance") {
 
 // `filters` shape: { city, locality, propertyType, bhk, minPrice, maxPrice,
 // minArea, maxArea, furnishing, parking, verified, ownerOnly, rera, gender,
-// roomType, commercialCategory, possession }. `city`/`locality` are plain
-// display names (matching src/data/properties.js), not slugs.
+// roomType, commercialCategory, possession, listingType, plotType }.
+// `city`/`locality` are plain display names (matching src/data/properties.js),
+// not slugs.
 export function applyFilters(list, filters = {}) {
   return list.filter((p) => {
+    if (filters.q) {
+      const q = filters.q.trim().toLowerCase();
+      if (q && !`${p.location.city} ${p.location.locality} ${p.title}`.toLowerCase().includes(q)) return false;
+    }
     if (filters.city && p.location.city !== filters.city) return false;
     if (filters.locality && p.location.locality !== filters.locality) return false;
     if (filters.propertyType && filters.propertyType !== "any" && p.type !== filters.propertyType) return false;
@@ -240,6 +267,8 @@ export function applyFilters(list, filters = {}) {
     )
       return false;
     if (filters.possession && filters.possession !== "any" && derivePossession(p) !== filters.possession) return false;
+    if (filters.listingType && filters.listingType !== "any" && p.listingType !== filters.listingType) return false;
+    if (filters.plotType && filters.plotType !== "any" && derivePlotType(p) !== filters.plotType) return false;
     return true;
   });
 }
@@ -254,13 +283,31 @@ export function getProjectBySlug(slug) {
 
 export function applyProjectFilters(list, filters = {}) {
   return list.filter((p) => {
+    if (filters.q) {
+      const q = filters.q.trim().toLowerCase();
+      if (q && !`${p.city} ${p.locality} ${p.projectName}`.toLowerCase().includes(q)) return false;
+    }
     if (filters.city && p.city !== filters.city) return false;
+    if (filters.locality && p.locality !== filters.locality) return false;
     if (filters.status && filters.status !== "any" && p.status !== filters.status) return false;
     if (filters.propertyType && filters.propertyType !== "any" && p.projectType !== filters.propertyType) return false;
     if (filters.minPrice && p.startingPrice < Number(filters.minPrice)) return false;
     if (filters.maxPrice && p.startingPrice > Number(filters.maxPrice)) return false;
+    if (filters.rera === true && !p.reraNumber) return false;
     return true;
   });
+}
+
+const PROJECT_SORTERS = {
+  newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  "price-asc": (a, b) => a.startingPrice - b.startingPrice,
+  "price-desc": (a, b) => b.startingPrice - a.startingPrice,
+  possession: (a, b) => new Date(a.possessionDate ?? 0) - new Date(b.possessionDate ?? 0),
+};
+
+export function sortProjects(list, sortKey = "newest") {
+  const sorter = PROJECT_SORTERS[sortKey] ?? PROJECT_SORTERS.newest;
+  return [...list].sort(sorter);
 }
 
 export function getRelatedProjects(project, limit = 3) {

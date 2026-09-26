@@ -1,77 +1,78 @@
 "use client";
 
 import { useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
-import { PropertyImage } from "@/components/common/property-image";
-import { cn } from "@/lib/utils";
 
-export function PropertyGallery({ images, title }) {
-  const [active, setActive] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
+function galleryStyle(count) {
+  if (count === 1) return { gridTemplateColumns: "1fr", gridTemplateRows: "440px" };
+  if (count < 5) return { gridTemplateColumns: "2fr 1fr", gridTemplateRows: `repeat(${count - 1}, ${Math.floor(428 / (count - 1))}px)` };
+  return undefined;
+}
 
-  function next() {
-    setActive((i) => (i + 1) % images.length);
-  }
-  function prev() {
-    setActive((i) => (i - 1 + images.length) % images.length);
-  }
+// Ported from the prototype's gallery markup in property-view.js + its
+// lightbox() helper in app.js.
+export function PropertyGallery({ images, title, verifiedBadges }) {
+  const [lightbox, setLightbox] = useState(null);
+  const shown = images.slice(0, 5);
 
   return (
-    <div>
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-        <button
-          onClick={() => setLightboxOpen(true)}
-          className="group relative col-span-4 aspect-[16/10] overflow-hidden rounded-2xl sm:col-span-3 sm:row-span-2"
-        >
-          <PropertyImage src={images[active]} alt={`${title} — photo ${active + 1}`} priority sizes="(min-width: 640px) 75vw, 100vw" />
-          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-            <Expand className="h-3.5 w-3.5" /> View fullscreen
-          </span>
-          <span className="absolute bottom-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-            {active + 1} / {images.length}
-          </span>
-        </button>
-
-        <div className="col-span-4 grid grid-cols-4 gap-1.5 sm:col-span-1 sm:grid-cols-1 sm:gap-2">
-          {images.slice(0, 4).map((src, index) => (
-            <button
-              key={src + index}
-              onClick={() => setActive(index)}
-              className={cn(
-                "relative aspect-[4/3] overflow-hidden rounded-xl ring-2 ring-offset-1 transition-all sm:aspect-auto sm:h-full",
-                active === index ? "ring-primary-600" : "ring-transparent hover:ring-primary-300"
-              )}
-            >
-              <PropertyImage src={src} alt={`${title} thumbnail ${index + 1}`} sizes="120px" />
-            </button>
-          ))}
-        </div>
+    <>
+      <div className="gallery" style={galleryStyle(shown.length)}>
+        {shown.map((src, i) => (
+          <button key={i} data-g={i} aria-label={`Open photo ${i + 1}`} onClick={() => setLightbox(i)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={`${title} photo ${i + 1}`} loading={i ? "lazy" : undefined} />
+          </button>
+        ))}
+        {verifiedBadges?.length > 0 && (
+          <div className="gallery-tags">
+            {verifiedBadges.map((v) => (
+              <span key={v} className="badge" style={{ background: "#fff" }}><i className="bi bi-patch-check-fill text-success" />{v}</span>
+            ))}
+          </div>
+        )}
+        {images.length > 1 && (
+          <button type="button" className="btn btn-outline btn-sm gallery-all" onClick={() => setLightbox(0)}>
+            <i className="bi bi-grid-3x3-gap" />View all {images.length} photos
+          </button>
+        )}
       </div>
 
-      <DialogPrimitive.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90 data-[state=open]:animate-fade-in" />
-          <DialogPrimitive.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 data-[state=open]:animate-scale-in">
-            <DialogPrimitive.Title className="sr-only">{title} gallery</DialogPrimitive.Title>
-            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
-              <X className="h-5 w-5" />
-            </DialogPrimitive.Close>
-            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20 sm:left-4">
-              <ChevronLeft className="h-5 w-5" />
+      <div className="gallery-mobile">
+        <div className="track">
+          {images.map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={src} alt={`Photo ${i + 1}`} loading={i ? "lazy" : undefined} onClick={() => setLightbox(i)} />
+          ))}
+        </div>
+        <span className="badge badge-dark counter"><i className="bi bi-camera" /><span>{(lightbox ?? 0) + 1}</span> / {images.length}</span>
+      </div>
+
+      {lightbox !== null && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label={`${title} photos`}>
+          <div className="lightbox-top">
+            <span>{lightbox + 1} / {images.length}</span>
+            <button className="modal-x" aria-label="Close" onClick={() => setLightbox(null)}><i className="bi bi-x-lg" /></button>
+          </div>
+          <div className="lightbox-stage">
+            <button className="lightbox-nav prev" aria-label="Previous photo" onClick={() => setLightbox((lightbox - 1 + images.length) % images.length)}>
+              <i className="bi bi-chevron-left" />
             </button>
-            <div className="relative h-[70vh] w-full max-w-4xl">
-              <PropertyImage src={images[active]} alt={`${title} — photo ${active + 1}`} sizes="90vw" />
-            </div>
-            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20 sm:right-4">
-              <ChevronRight className="h-5 w-5" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={images[lightbox]} alt={`${title} photo ${lightbox + 1}`} />
+            <button className="lightbox-nav next" aria-label="Next photo" onClick={() => setLightbox((lightbox + 1) % images.length)}>
+              <i className="bi bi-chevron-right" />
             </button>
-            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
-              {active + 1} / {images.length}
-            </span>
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
-    </div>
+          </div>
+          <div className="lightbox-thumbs">
+            {images.map((src, i) => (
+              <button key={i} className={i === lightbox ? "is-active" : ""} onClick={() => setLightbox(i)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

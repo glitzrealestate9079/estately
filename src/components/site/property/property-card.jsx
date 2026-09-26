@@ -1,142 +1,384 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { BedDouble, Camera, Car, Heart, MapPin, Ruler, Scale, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PropertyImage } from "@/components/common/property-image";
-import { TrustBadges } from "@/components/site/property/trust-badges";
-import { Button } from "@/components/ui/button";
 import { useSite } from "@/components/site/providers/site-provider";
-import { formatArea, formatPrice, formatPricePerSqft, timeAgoLabel } from "@/lib/site/format";
-import { derivePossession, derivePgGender, derivePgRoomType } from "@/lib/site/derived";
-import { cn } from "@/lib/utils";
+import { useCompareToggle } from "@/components/site/property/use-compare-toggle";
+import { daysAgoText, inr, num, sellerLabel } from "@/lib/site/template/format";
 
-export function PropertyCard({ property, className }) {
-  const { isSaved, toggleSave, isComparing, toggleCompare, maxCompare, mounted } = useSite();
-  const [imageIndex] = useState(0);
-  const saved = mounted && isSaved(property.id);
-  const comparing = mounted && isComparing(property.id);
-  const isPg = property.listingType === "PG";
+function initials(name) {
+  return String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
 
-  function handleSave(e) {
-    e.preventDefault();
-    toggleSave(property.id);
-    toast.success(saved ? "Removed from saved" : "Saved to your shortlist", {
-      description: !saved ? "Find it anytime under Saved." : undefined,
-    });
+function updatedText(days) {
+  const rel = daysAgoText(days);
+  return rel ? `Updated ${rel}` : "";
+}
+
+function priceParts(p) {
+  switch (p.cat) {
+    case "buy":
+      return { main: inr(p.price), per: `₹${num(p.price / p.area)}/sq.ft` };
+    case "rent":
+      return { main: inr(p.rent), suffix: "/month", per: `Deposit ${inr(p.deposit)}` };
+    case "pg":
+      return { main: inr(p.rent), suffix: "/month", per: Object.keys(p.occ).length > 1 ? "onwards · per bed" : "per bed" };
+    case "commercial":
+      return p.txn === "rent"
+        ? { main: inr(p.price), suffix: "/month", per: `₹${num(p.price / p.area)}/sq.ft/month` }
+        : { main: inr(p.price), per: `₹${num(p.price / p.area)}/sq.ft` };
+    case "plot":
+      return { main: inr(p.price), per: `₹${num(p.price / p.orig.value)}/${p.orig.unit}` };
+    default:
+      return { main: inr(p.price) };
   }
+}
 
-  function handleCompare(e) {
-    e.preventDefault();
-    const result = toggleCompare(property.id);
-    if (result.atLimit) {
-      toast.error(`You can compare up to ${maxCompare} properties at a time`);
-      return;
-    }
-    if (result.didAdd) toast.success("Added to compare");
+function statusBadge(p) {
+  if (p.cat === "buy") {
+    return p.possession === "Ready to Move" ? (
+      <span className="badge badge-success badge-sm">Ready to move</span>
+    ) : (
+      <span className="badge badge-warning badge-sm">Under construction</span>
+    );
+  }
+  if (p.cat === "rent") {
+    return p.available === "Immediately" ? (
+      <span className="badge badge-success badge-sm">Available now</span>
+    ) : (
+      <span className="badge badge-info badge-sm">From {p.available.replace(" 2026", "")}</span>
+    );
+  }
+  if (p.cat === "pg") {
+    return <span className="badge badge-purple badge-sm">{p.gender === "Female" ? "Girls" : p.gender === "Male" ? "Boys" : "Co-living · All"}</span>;
+  }
+  if (p.cat === "commercial") {
+    return <span className="badge badge-info badge-sm">For {p.txn === "rent" ? "lease" : "sale"}</span>;
+  }
+  if (p.cat === "plot") {
+    return <span className="badge badge-sm" style={{ background: "#fff" }}>{p.plotType}</span>;
+  }
+  return null;
+}
+
+function Kv({ k, v, s }) {
+  return (
+    <div>
+      <div className="k">{k}</div>
+      <div className="v">{v} {s && <small>{s}</small>}</div>
+    </div>
+  );
+}
+
+function Feat({ ok, label }) {
+  return (
+    <span className={`feat ${ok ? "" : "no"}`}>
+      <i className={`bi ${ok ? "bi-check-lg" : "bi-x-lg"}`} />{label}
+    </span>
+  );
+}
+
+function verifItems(p) {
+  const items = [];
+  if (p.verif.location) items.push({ key: "location", label: "Location verified" });
+  if (p.verif.docs && (p.cat === "buy" || p.cat === "plot" || (p.cat === "commercial" && p.txn === "sale"))) {
+    items.push({ key: "docs", label: "Ownership docs checked" });
+  }
+  if (p.verif.identity) items.push({ key: "identity", label: "Identity verified" });
+  if (p.verif.phone) items.push({ key: "phone", label: "Phone verified" });
+  return items;
+}
+
+const VSHORT = { location: "Location verified", docs: "Docs checked", identity: "ID verified", phone: "Phone verified" };
+
+function VBadges({ p, max = 2, short = false }) {
+  const items = verifItems(p).slice(0, max);
+  if (!items.length) return <div className="vlist" />;
+  return (
+    <div className="vlist">
+      {items.map((i) => (
+        <span key={i.key} className="vbadge" title={i.label}>
+          <i className="bi bi-patch-check-fill" />{short ? VSHORT[i.key] : i.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SaveButton({ id }) {
+  const { mounted, savedIds, toggleSave } = useSite();
+  const router = useRouter();
+  const isSaved = mounted && savedIds.includes(id);
+  return (
+    <button
+      type="button"
+      className={`save-btn ${isSaved ? "is-saved" : ""}`}
+      aria-label={isSaved ? "Remove from saved" : "Save property"}
+      aria-pressed={isSaved}
+      onClick={(e) => {
+        e.preventDefault();
+        toggleSave(id);
+        if (isSaved) {
+          toast("Removed from saved", { action: { label: "Undo", onClick: () => toggleSave(id) } });
+        } else {
+          toast.success("Saved to your shortlist", { action: { label: "View saved", onClick: () => router.push("/saved") } });
+        }
+      }}
+    >
+      <i className="bi bi-heart" />
+    </button>
+  );
+}
+
+function CompareChip({ id }) {
+  const { mounted, compareIds } = useSite();
+  const handleCompareToggle = useCompareToggle();
+  const checked = mounted && compareIds.includes(id);
+  return (
+    <label className="cmp-chip" title="Add to compare">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => handleCompareToggle(id)}
+        aria-label="Compare"
+      />
+      <i className="bi bi-plus-lg ic-off" /><i className="bi bi-check-lg ic-on" />
+      <span className="t-off">Compare</span><span className="t-on">Added</span>
+    </label>
+  );
+}
+
+function CardBody({ p, list }) {
+  if (p.cat === "buy") {
+    return list ? (
+      <div className="pcard-kv">
+        <Kv k={p.areaType} v={`${num(p.area)} sq.ft`} />
+        <Kv k="Possession" v={p.possession === "Ready to Move" ? "Ready to move" : "Under construction"} />
+        <Kv k="Furnishing" v={p.furnishing} />
+      </div>
+    ) : (
+      <div className="pcard-facts">
+        <span><i className="bi bi-arrows-angle-expand" />{num(p.area)} sq.ft</span>
+        <span>{p.possession === "Ready to Move" ? "Ready to move" : "Under construction"}</span>
+      </div>
+    );
+  }
+  if (p.cat === "rent") {
+    return list ? (
+      <>
+        <div className="pcard-kv">
+          <Kv k="Furnishing" v={p.furnishing} />
+          <Kv k="Parking" v={p.parking ? `${p.parking} covered` : "None"} />
+          <Kv k="Available" v={p.available === "Immediately" ? "Immediately" : p.available.replace(" 2026", "")} />
+        </div>
+        <div className="pcard-feats">
+          <span className="feat"><i className="bi bi-people" />{p.tenant}</span>
+          <span className="feat"><i className="bi bi-calendar3" />{p.lease} lease</span>
+        </div>
+      </>
+    ) : (
+      <div className="pcard-facts">
+        <span>{p.furnishing}</span>
+        <span>{p.available === "Immediately" ? "Available now" : `From ${p.available.replace(" 2026", "")}`}</span>
+      </div>
+    );
+  }
+  if (p.cat === "pg") {
+    const occEntries = Object.entries(p.occ);
+    return (
+      <>
+        {list ? (
+          <div className="pcard-feats">
+            {occEntries.map(([k, v]) => (
+              <span key={k} className="feat" style={{ color: "var(--ink)" }}>{k} <b style={{ marginLeft: 2 }}>{inr(v)}</b></span>
+            ))}
+          </div>
+        ) : (
+          <div className="pcard-facts">
+            {occEntries.slice(0, 2).map(([k, v]) => (
+              <span key={k}>{k} <b className="ink">{inr(v)}</b></span>
+            ))}
+          </div>
+        )}
+        <div className="pcard-feats">
+          <Feat ok={p.food !== "No food"} label="Food" />
+          <Feat ok={p.wifi} label="Wi-Fi" />
+          <Feat ok={p.ac} label="AC" />
+          <Feat ok={p.bath} label="Attached bath" />
+        </div>
+        {list && (
+          <div className="small muted">
+            <i className="bi bi-people" /> {p.gender === "Any" ? "Male / Female" : p.gender === "Male" ? "Male only" : "Female only"} · {p.tenantType} · {p.food}
+          </div>
+        )}
+      </>
+    );
+  }
+  if (p.cat === "commercial") {
+    return (
+      <>
+        {list ? (
+          <div className="pcard-kv">
+            <Kv k="Area" v={`${num(p.area)} sq.ft`} />
+            <Kv k="Furnishing" v={p.furnishing} />
+            <Kv k="Parking" v={p.parking ? `${p.parking} spaces` : "—"} />
+          </div>
+        ) : (
+          <div className="pcard-facts">
+            <span>{num(p.area)} sq.ft</span>
+            <span>{p.furnishing}</span>
+          </div>
+        )}
+        <div className="pcard-feats">
+          {p.features.slice(0, list ? 4 : 2).map((f) => (
+            <span key={f} className="feat"><i className="bi bi-check-lg" />{f}</span>
+          ))}
+        </div>
+        <div className="small muted"><i className="bi bi-train-front" /> {p.connectivity}</div>
+      </>
+    );
+  }
+  if (p.cat === "plot") {
+    return (
+      <>
+        {list ? (
+          <div className="pcard-kv">
+            <Kv k="Plot area" v={<span className="unit-orig">{num(p.orig.value)} {p.orig.unit}</span>} />
+            <Kv k="Facing" v={p.facing} />
+            <Kv k="Road width" v={`${p.roadWidth} ft`} />
+          </div>
+        ) : (
+          <div className="pcard-facts">
+            <span><span className="unit-orig">{num(p.orig.value)} {p.orig.unit}</span></span>
+          </div>
+        )}
+        <div className="pcard-feats">
+          <span className="feat"><i className="bi bi-info-circle" style={{ color: "var(--muted)" }} />{p.approval}</span>
+          {list && p.corner && <span className="feat"><i className="bi bi-check-lg" />Corner plot</span>}
+          {list && p.boundary && <span className="feat"><i className="bi bi-check-lg" />Boundary wall</span>}
+        </div>
+      </>
+    );
+  }
+  return null;
+}
+
+function titleFor(p) {
+  if (p.cat === "buy" || p.cat === "rent") return `${p.bhk} BHK ${p.type}`;
+  if (p.cat === "commercial") return p.ctype;
+  return p.type ?? "";
+}
+
+// Ported from the prototype's propertyCard() in app.js — same markup/classes
+// for all 5 categories (buy/rent/pg/commercial/plot), fed by
+// toTemplateProperty() instead of the prototype's own mock data shape.
+export function PropertyCard({ property, layout }) {
+  const list = layout === "list";
+  const p = property;
+  const href = `/property/${p.slug}`;
+  const title = titleFor(p);
+  const pr = priceParts(p);
+  const locLine = p.sub ? `${p.sub}, ${p.loc}, ${p.city}` : `${p.loc}, ${p.city}`;
+
+  if (!list) {
+    return (
+      <article className="pcard" data-id={p.id}>
+        <Link className="pcard-link" href={href} tabIndex={-1} aria-hidden="true" />
+        <div className="pcard-media">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img loading="lazy" src={p.images[0]} alt={`${title} in ${p.loc}`} />
+          <div className="pcard-tl">{statusBadge(p)}</div>
+          <SaveButton id={p.id} />
+          <div className="pcard-ov">
+            <div className="ov-text">
+              <h3 className="pcard-title"><Link href={href}>{title}</Link></h3>
+              <div className="pcard-loc"><i className="bi bi-geo-alt-fill" />{locLine}</div>
+            </div>
+            <span className="badge badge-dark badge-sm ov-photos"><i className="bi bi-camera" />{p.images.length}</span>
+          </div>
+        </div>
+        <div className="pcard-body">
+          <div className="seller-mini">
+            <span className="avatar">{initials(p.seller.name)}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="nm" title={p.seller.name}>{p.seller.name}</div>
+              <div className="xs">{sellerLabel(p)}</div>
+            </div>
+            <span className="seller-fresh" title={updatedText(p.updated)}>
+              <i className="bi bi-clock" />{updatedText(p.updated).replace("Updated ", "").replace(/^./, (c) => c.toUpperCase())}
+            </span>
+          </div>
+          <div className="pcard-price">
+            <span className="price">{pr.main}</span>
+            {pr.suffix && <span className="per" style={{ marginLeft: -6 }}>{pr.suffix}</span>}
+            {pr.per && <span className="per">{pr.per}</span>}
+          </div>
+          <CardBody p={p} list={false} />
+          <div className="pcard-foot"><VBadges p={p} max={2} short /></div>
+          <div className="pcard-reveal">
+            <Link className="btn btn-primary btn-sm" href={href}>View details<i className="bi bi-arrow-right" /></Link>
+            <CompareChip id={p.id} />
+          </div>
+        </div>
+      </article>
+    );
   }
 
   return (
-    <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2, ease: "easeOut" }} className={className}>
-      <div className="group h-full overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-card transition-shadow duration-300 hover:shadow-card-hover">
-        <Link href={`/property/${property.slug}`} className="relative block aspect-[4/3] overflow-hidden">
-          <PropertyImage
-            src={property.images[imageIndex]}
-            alt={property.title}
-            className="transition-transform duration-500 group-hover:scale-105"
-          />
-          <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2.5">
-            <div className="flex flex-col gap-1.5">
-              {property.featured && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-featured-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                  <Sparkles className="h-2.5 w-2.5" /> Featured
-                </span>
-              )}
+    <article className={`pcard ${list ? "is-list" : ""}`} data-id={p.id}>
+      <div className="pcard-media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img loading="lazy" src={p.images[0]} alt={`${title} in ${p.loc}`} />
+        <div className="pcard-tl">{statusBadge(p)}</div>
+        <SaveButton id={p.id} />
+        <div className="pcard-bl"><span className="badge badge-dark badge-sm"><i className="bi bi-camera" />{p.images.length}</span></div>
+      </div>
+      <div className="pcard-body">
+        <div className="pcard-top">
+          <div className="pcard-head">
+            <h3 className="pcard-title"><Link href={href}>{title}</Link></h3>
+            <div className="pcard-loc mt-4"><i className="bi bi-geo-alt-fill" />{locLine}</div>
+          </div>
+          <div className="pcard-price">
+            <div><span className="price">{pr.main}</span>{pr.suffix && <span className="suffix">{pr.suffix}</span>}</div>
+            {pr.per && <span className="per">{pr.per}</span>}
+          </div>
+        </div>
+        <CardBody p={p} list />
+        <VBadges p={p} max={3} />
+        <div className="pcard-foot">
+          <div className="seller-mini">
+            <span className="avatar">{initials(p.seller.name)}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="nm" title={p.seller.name}>{p.seller.name}</div>
+              <div className="xs">{sellerLabel(p)} · {updatedText(p.updated)}</div>
             </div>
-            <button
-              onClick={handleSave}
-              aria-label={saved ? "Remove from saved" : "Save property"}
-              aria-pressed={saved}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md transition-colors",
-                saved ? "bg-error-600 text-white" : "bg-white/85 text-navy-700 hover:bg-white"
-              )}
-            >
-              <Heart className={cn("h-4 w-4", saved && "fill-current")} />
-            </button>
           </div>
-          <div className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
-              <Camera className="h-3 w-3" /> {property.images.length} Photos
-            </span>
-            <button
-              onClick={handleCompare}
-              aria-pressed={comparing}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-xs font-medium backdrop-blur-sm transition-colors",
-                comparing ? "bg-primary-600 text-white" : "bg-black/45 text-white hover:bg-black/60"
-              )}
-            >
-              <Scale className="h-3 w-3" /> {comparing ? "Comparing" : "Compare"}
-            </button>
-          </div>
-        </Link>
-
-        <div className="flex flex-col gap-2.5 p-4">
-          <Link href={`/property/${property.slug}`}>
-            <p className="truncate font-display text-sm font-semibold text-foreground group-hover:text-primary-600 sm:text-base">
-              {property.bedrooms ? `${property.bedrooms} BHK ${property.type}` : property.type}
-            </p>
-          </Link>
-
-          <div className="flex items-baseline gap-2">
-            <p className="font-display text-lg font-bold text-primary-700 dark:text-primary-400">
-              {formatPrice(property)}
-            </p>
-            {formatPricePerSqft(property) && (
-              <p className="text-xs text-foreground-muted">{formatPricePerSqft(property)}</p>
-            )}
-          </div>
-
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground-muted">
-            {property.bedrooms && (
-              <span className="inline-flex items-center gap-1">
-                <BedDouble className="h-3.5 w-3.5" /> {property.bedrooms} Bed
-              </span>
-            )}
-            {formatArea(property) && (
-              <span className="inline-flex items-center gap-1">
-                <Ruler className="h-3.5 w-3.5" /> {formatArea(property)}
-              </span>
-            )}
-            {property.parking && (
-              <span className="inline-flex items-center gap-1">
-                <Car className="h-3.5 w-3.5" /> Parking
-              </span>
-            )}
-            <span className="text-foreground-muted/70">•</span>
-            <span>
-              {isPg ? `${derivePgGender(property)} · ${derivePgRoomType(property)}` : derivePossession(property)}
-            </span>
-          </p>
-
-          <p className="flex items-center gap-1.5 truncate text-xs text-foreground-muted">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            {property.location.locality}, {property.location.city}
-          </p>
-
-          <TrustBadges property={property} />
-
-          <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-            <span className="text-[11px] text-foreground-muted">{timeAgoLabel(property.createdAt)}</span>
-            <Button asChild size="sm" variant="outline" className="h-8 px-3 text-xs">
-              <Link href={`/property/${property.slug}`}>View Details</Link>
-            </Button>
+          <div className="pcard-actions">
+            <CompareToggle id={p.id} />
+            <button type="button" className="btn btn-outline btn-sm"><i className="bi bi-telephone" />Contact</button>
+            <Link className="btn btn-primary btn-sm" href={href}>View details<i className="bi bi-arrow-right" /></Link>
           </div>
         </div>
       </div>
-    </motion.div>
+    </article>
+  );
+}
+
+function CompareToggle({ id }) {
+  const { mounted, compareIds } = useSite();
+  const handleCompareToggle = useCompareToggle();
+  const checked = mounted && compareIds.includes(id);
+  return (
+    <label className="compare-toggle">
+      <input type="checkbox" checked={checked} onChange={() => handleCompareToggle(id)} />Compare
+    </label>
   );
 }

@@ -18,6 +18,7 @@ export const blogSchema = yup.object({
     .url("Please enter a valid image URL"),
   author: yup.string().trim().required("Author name is required"),
   status: yup.string().required("Please select a status"),
+  body: yup.string().trim().optional(),
 });
 
 export const BLOG_DEFAULT_VALUES = {
@@ -26,4 +27,5 @@ export const BLOG_DEFAULT_VALUES = {
   coverImage: "",
   author: "",
   status: "Draft",
+  body: "",
 };

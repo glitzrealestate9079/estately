@@ -7,6 +7,7 @@ import { getPropertiesForCategory, applyFilters, sortProperties } from "@/lib/si
 const PAGE_SIZE = 12;
 
 const DEFAULT_FILTERS = {
+  q: "",
   city: "",
   locality: "",
   propertyType: "any",
@@ -24,6 +25,8 @@ const DEFAULT_FILTERS = {
   roomType: "any",
   commercialCategory: "any",
   possession: "any",
+  listingType: "any",
+  plotType: "any",
 };
 
 export function usePropertySearch(categoryKey) {
@@ -31,13 +34,26 @@ export function usePropertySearch(categoryKey) {
 
   const [filters, setFiltersState] = useState(() => ({
     ...DEFAULT_FILTERS,
+    q: searchParams.get("q") ?? "",
     city: searchParams.get("city") ?? "",
     locality: searchParams.get("locality") ?? "",
     propertyType: searchParams.get("propertyType") ?? "any",
     bhk: searchParams.get("bhk") ?? "any",
     minPrice: searchParams.get("minPrice") ?? "",
     maxPrice: searchParams.get("maxPrice") ?? "",
+    minArea: searchParams.get("minArea") ?? "",
+    maxArea: searchParams.get("maxArea") ?? "",
+    furnishing: searchParams.get("furnishing") ?? "any",
+    parking: searchParams.get("parking") === "true",
+    verified: searchParams.get("verified") === "true",
+    rera: searchParams.get("rera") === "true",
     ownerOnly: searchParams.get("ownerOnly") === "true",
+    gender: searchParams.get("gender") ?? "any",
+    roomType: searchParams.get("roomType") ?? "any",
+    commercialCategory: searchParams.get("commercialCategory") ?? "any",
+    possession: searchParams.get("possession") ?? "any",
+    listingType: searchParams.get("listingType") ?? "any",
+    plotType: searchParams.get("plotType") ?? "any",
   }));
   const [sortKey, setSortKey] = useState(searchParams.get("sort") ?? "relevance");
   const [page, setPage] = useState(1);
@@ -88,6 +104,7 @@ export function usePropertySearch(categoryKey) {
 
 function countActiveFilters(filters) {
   let count = 0;
+  if (filters.q) count += 1;
   if (filters.city) count += 1;
   if (filters.locality) count += 1;
   if (filters.propertyType !== "any") count += 1;
@@ -103,6 +120,8 @@ function countActiveFilters(filters) {
   if (filters.roomType !== "any") count += 1;
   if (filters.commercialCategory !== "any") count += 1;
   if (filters.possession !== "any") count += 1;
+  if (filters.listingType !== "any") count += 1;
+  if (filters.plotType !== "any") count += 1;
   return count;
 }
 

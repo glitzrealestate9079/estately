@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Building2, MapPinned } from "lucide-react";
-import { PropertyCard } from "@/components/site/property/property-card";
 import { ProjectCard } from "@/components/site/project/project-card";
-import { LocalityCard } from "@/components/site/locality/locality-card";
-import { SectionHeading } from "@/components/site/ui/section-heading";
-import { RevealGroup, RevealItem } from "@/components/site/ui/reveal";
-import { SEARCH_CATEGORY_LIST } from "@/lib/site/categories";
+import { Scroller } from "@/components/site/ui/scroller";
+import { SoonLink } from "@/components/site/ui/soon-link";
 import { PROJECTS } from "@/data/projects";
-import { PUBLIC_CITIES, getCityBySlug, getLocalitiesForCity, getPropertiesForCity } from "@/lib/site/site-data";
+import { LIVE_PROPERTIES, PUBLIC_CITIES, getCityBySlug, getLocalitiesForCity } from "@/lib/site/site-data";
+import { CATEGORY_LIST } from "@/lib/site/categories";
+import { toTemplateProject } from "@/lib/site/template/project-mapper";
+import { toTemplateLocality } from "@/lib/site/template/locality-mapper";
+import { inr, num } from "@/lib/site/template/format";
 
 export function generateStaticParams() {
   return PUBLIC_CITIES.map((c) => ({ slug: c.id }));
@@ -18,101 +18,135 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   const city = getCityBySlug(slug);
   if (!city) return { title: "City Not Found" };
-  return {
-    title: `Properties in ${city.name} — Buy, Rent, PG & Commercial`,
-    description: `Explore ${city.propertyCount} verified properties and ${city.projectCount} new projects in ${city.name}.`,
-  };
+  return { title: `Properties in ${city.name} — Buy, Rent, PG & Commercial`, description: `Explore properties, prices and new projects in ${city.name}.` };
 }
+
+const CAT_META = {
+  buy: ["bi-house-door", "Homes for sale"],
+  rent: ["bi-key", "Flats & houses"],
+  pg: ["bi-people", "Beds & co-living"],
+  commercial: ["bi-shop", "Offices, shops, warehouses"],
+  plots: ["bi-bounding-box", "Residential & land"],
+  projects: ["bi-buildings", "Launches & under construction"],
+};
+
+// Short tile labels, matching the original prototype's city-cat grid wording
+// (distinct from the longer CATEGORIES.label used in nav/search headers).
+const CAT_LABEL = { buy: "Buy", rent: "Rent", pg: "PG", commercial: "Commercial", plots: "Plots", projects: "New Projects" };
 
 export default async function CityPage({ params }) {
   const { slug } = await params;
   const city = getCityBySlug(slug);
   if (!city) notFound();
 
-  const localities = getLocalitiesForCity(city.id).sort((a, b) => b.propertyCount - a.propertyCount);
-  const properties = getPropertiesForCity(city.name, 8);
-  const projects = PROJECTS.filter((p) => p.city === city.name).slice(0, 3);
+  const localities = getLocalitiesForCity(city.id).map(toTemplateLocality).sort((a, b) => b.count - a.count);
+  const projects = PROJECTS.filter((p) => p.city === city.name).map(toTemplateProject);
+
+  const cityProperties = LIVE_PROPERTIES.filter((p) => p.location.city === city.name);
+  const counts = Object.fromEntries(
+    CATEGORY_LIST.filter((c) => c.key !== "projects").map((c) => [c.key, cityProperties.filter(c.matches).length])
+  );
+  counts.projects = city.projectCount;
+
+  const mostAffordable = localities.length ? [...localities].sort((a, b) => a.avg - b.avg)[0] : null;
+  const fastestGrowing = localities.length ? [...localities].sort((a, b) => b.trend[5] / b.trend[1] - a.trend[5] / a.trend[1])[0] : null;
+  const mostListings = localities[0] ?? null;
+  const stateName = city.intel?.stateName ?? "India";
+  const guides = [
+    [`Buying your first home in ${city.name}`, "A checklist: budget, local approvals, RERA, loan pre-approval.", "bi-journal-check"],
+    [`Renting in ${city.name}: deposits & agreements`, "What's normal for deposits, lock-in and notice periods.", "bi-file-earmark-text"],
+    [`Understanding land units in ${stateName}`, "Bigha, biswa, sq.yd — and why conversions vary by district.", "bi-rulers"],
+  ];
 
   return (
-    <div>
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy-900 to-navy-950 py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">Properties in {city.name}</h1>
-          <p className="mt-2 max-w-xl text-sm text-navy-200">
-            {city.propertyCount} active listings and {city.projectCount} new projects across {localities.length} localities.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2.5">
-            {SEARCH_CATEGORY_LIST.map((category) => (
-              <Link
-                key={category.key}
-                href={`${category.href}?city=${encodeURIComponent(city.name)}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/20"
-              >
-                <category.icon className="h-4 w-4" /> {category.label}
+    <>
+      <section style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", paddingBottom: 28 }}>
+        <div className="container">
+          <nav className="crumbs"><Link href="/">Home</Link><i className="bi bi-chevron-right" /><span>{city.name}</span></nav>
+          <div className="eyebrow">{city.intel?.stateName ?? "India"}</div>
+          <h1 className="h1 mt-8">Properties in {city.name}</h1>
+          <p className="muted mt-8">{num(city.propertyCount)} listings across {localities.length} localities</p>
+          <div className="city-cats mt-24">
+            {CATEGORY_LIST.map((c) => (
+              <Link key={c.key} className="city-cat" href={`${c.href}?city=${encodeURIComponent(city.name)}`}>
+                <i className={`bi ${CAT_META[c.key]?.[0] ?? "bi-house"}`} />
+                <span className="t">{CAT_LABEL[c.key] ?? c.label}</span>
+                <span className="s">{CAT_META[c.key]?.[1]}</span>
+                <span className="xs muted">{num(counts[c.key] ?? 0)} listed</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-14 px-4 py-12 sm:px-6 lg:px-8">
-        <section>
-          <SectionHeading eyebrow="Localities" title={`Popular areas in ${city.name}`} />
-          <RevealGroup className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {localities.map((locality) => (
-              <RevealItem key={locality.id}>
-                <LocalityCard locality={locality} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </section>
-
-        {properties.length > 0 && (
-          <section>
-            <SectionHeading
-              eyebrow="Live inventory"
-              title="Featured properties"
-              action={{ label: `View all in ${city.name}`, href: `/buy?city=${encodeURIComponent(city.name)}` }}
-            />
-            <RevealGroup className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {properties.map((property) => (
-                <RevealItem key={property.id}>
-                  <PropertyCard property={property} />
-                </RevealItem>
-              ))}
-            </RevealGroup>
+      <div className="container">
+        {localities.length > 0 && (
+          <section className="section">
+            <div className="section-head"><div><h2 className="h2">Popular localities</h2><p>Average sale price and rent range.</p></div></div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Locality</th><th>Zone</th><th>Avg. ₹/sq.ft</th><th>1-yr change</th><th>Rent range</th><th>Listings</th><th /></tr></thead>
+                <tbody>
+                  {localities.map((l) => (
+                    <tr key={l.slug}>
+                      <td><Link className="strong" href={`/locality/${l.slug}`}>{l.name}</Link></td>
+                      <td className="muted">{l.zone}</td>
+                      <td>₹{num(l.avg)}</td>
+                      <td className="trend-up">+{Math.round((l.trend[5] / l.trend[1] - 1) * 100)}%</td>
+                      <td>{inr(l.rent[0])} – {inr(l.rent[1])}</td>
+                      <td>{num(l.count)}</td>
+                      <td><Link className="btn btn-outline btn-sm" href={`/buy?city=${encodeURIComponent(city.name)}&locality=${encodeURIComponent(l.name)}`}>View</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="data-meta" style={{ border: 0 }}>
+              <span><i className="bi bi-calendar3" />Data period: Jul–Sep 2026</span>
+              <span><i className="bi bi-arrow-clockwise" />Last updated 21 Sep 2026</span>
+              <span><i className="bi bi-house" />Residential resale; rent for 1–3 BHK</span>
+            </div>
           </section>
         )}
 
         {projects.length > 0 && (
-          <section>
-            <SectionHeading eyebrow="New launches" title="Popular projects" action={{ label: "View all projects", href: "/projects" }} />
-            <RevealGroup className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map((project) => (
-                <RevealItem key={project.id}>
-                  <ProjectCard project={project} />
-                </RevealItem>
-              ))}
-            </RevealGroup>
+          <section className="section">
+            <div className="section-head"><h2 className="h2">Popular projects</h2><Link className="see-all" href="/projects">All projects <i className="bi bi-arrow-right" /></Link></div>
+            <Scroller>{projects.map((p) => <ProjectCard key={p.id} project={p} />)}</Scroller>
           </section>
         )}
 
-        <section className="flex flex-col items-center gap-4 rounded-3xl border border-border-subtle bg-surface p-8 text-center shadow-card sm:flex-row sm:text-left">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400">
-            <MapPinned className="h-6 w-6" />
-          </span>
-          <div className="flex-1">
-            <p className="font-display text-base font-semibold text-foreground">Have a property in {city.name}?</p>
-            <p className="mt-1 text-sm text-foreground-muted">List it for free and reach thousands of active buyers and tenants searching in this city.</p>
+        {localities.length > 0 && (
+          <section className="section">
+            <div className="section-head"><div><h2 className="h2">Price trends &amp; market insights</h2><p>Across all {city.name} localities.</p></div></div>
+            <div className="grid-3">
+              {[["Most affordable", mostAffordable], ["Fastest growing", fastestGrowing], ["Most listings", mostListings]].filter(([, l]) => l).map(([k, l]) => (
+                <Link key={k} className="insight" href={`/locality/${l.slug}`}>
+                  <div className="k">{k}</div>
+                  <div className="v" style={{ fontSize: 20 }}>{l.name}</div>
+                  <div className="small">₹{num(l.avg)}/sq.ft · <span className="trend-up">+{Math.round((l.trend[5] / l.trend[1] - 1) * 100)}% YoY</span></div>
+                  <div className="data-meta">
+                    <span><i className="bi bi-calendar3" />Jul–Sep 2026</span>
+                    <span><i className="bi bi-house" />Residential resale</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="section">
+          <div className="section-head"><h2 className="h2">Guides</h2></div>
+          <div className="grid-3">
+            {guides.map(([t, s, icon]) => (
+              <SoonLink key={t} className="svc">
+                <span className="ico"><i className={`bi ${icon}`} /></span>
+                <span><div className="t">{t}</div><div className="s">{s}</div></span>
+              </SoonLink>
+            ))}
           </div>
-          <Link
-            href="/post-property"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
-          >
-            <Building2 className="h-4 w-4" /> Post Property
-          </Link>
         </section>
       </div>
-    </div>
+    </>
   );
 }

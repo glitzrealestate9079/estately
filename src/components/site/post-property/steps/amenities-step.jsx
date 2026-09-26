@@ -1,43 +1,43 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
-import { Check } from "lucide-react";
-import { AMENITIES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { AMENITY_POOLS, AMENITY_ICONS } from "@/lib/site/amenity-pools";
+import { kindFor } from "@/schemas/site/postPropertySchema";
 
 export function AmenitiesStep() {
-  const { control } = useFormContext();
+  const { control, watch } = useFormContext();
+  const kind = kindFor(watch());
+  const pool = AMENITY_POOLS[kind] ?? AMENITY_POOLS.default;
 
   return (
     <div>
-      <p className="mb-4 text-sm text-foreground-muted">Select everything that applies — this helps your listing rank higher for relevant searches.</p>
+      <h1>Amenities</h1>
+      <p className="lead">Select everything available. Unselected items are shown as not available.</p>
       <Controller
         control={control}
         name="amenities"
         render={({ field }) => (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {AMENITIES.map((amenity) => {
-              const active = field.value.includes(amenity);
-              return (
-                <button
-                  key={amenity}
-                  type="button"
-                  onClick={() => {
-                    field.onChange(active ? field.value.filter((a) => a !== amenity) : [...field.value, amenity]);
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                    active ? "border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400" : "border-border-subtle text-foreground-muted hover:border-primary-300"
-                  )}
-                >
-                  <span className={cn("flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border", active ? "border-primary-600 bg-primary-600 text-white" : "border-border-subtle")}>
-                    {active && <Check className="h-3 w-3" />}
-                  </span>
-                  {amenity}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div className="opt-grid mt-24" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              {pool.map((amenity) => {
+                const active = field.value.includes(amenity);
+                return (
+                  <button
+                    key={amenity}
+                    type="button"
+                    className={`opt-card opt-card-row ${active ? "is-selected" : ""}`}
+                    aria-pressed={active}
+                    onClick={() => field.onChange(active ? field.value.filter((a) => a !== amenity) : [...field.value, amenity])}
+                    style={{ padding: "10px 14px" }}
+                  >
+                    <span className="opt-ico" style={{ width: 34, height: 34, fontSize: 17 }}><i className={`bi ${AMENITY_ICONS[amenity] ?? "bi-check2-circle"}`} /></span>
+                    <span className="opt-title" style={{ fontSize: 14 }}>{amenity}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="small muted mt-16">{field.value.length} selected</p>
+          </>
         )}
       />
     </div>

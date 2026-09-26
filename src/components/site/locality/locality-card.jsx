@@ -1,53 +1,44 @@
-import Link from "next/link";
-import { ArrowUpRight, MapPin } from "lucide-react";
-import { PropertyImage } from "@/components/common/property-image";
-import { imageForCity } from "@/data/property-images";
+"use client";
 
-export function LocalityCard({ locality }) {
-  const avgPrice = locality.intel?.avgPricePerSqft;
-  return (
-    <Link
-      href={`/locality/${locality.id}`}
-      className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface p-4 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover"
-    >
-      <div>
-        <p className="flex items-center gap-1.5 text-xs text-foreground-muted">
-          <MapPin className="h-3.5 w-3.5" /> {locality.cityName}
-        </p>
-        <p className="mt-1 font-display text-base font-semibold text-foreground group-hover:text-primary-600">
-          {locality.name}
-        </p>
-      </div>
-      <div className="mt-4 flex items-end justify-between">
-        <div>
-          <p className="text-xs text-foreground-muted">{locality.propertyCount} properties</p>
-          {avgPrice && <p className="text-sm font-semibold text-foreground">₹{new Intl.NumberFormat("en-IN").format(avgPrice)}/sq.ft avg</p>}
-        </div>
-        <ArrowUpRight className="h-4 w-4 text-foreground-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary-600" />
-      </div>
-    </Link>
-  );
+import Link from "next/link";
+import { num } from "@/lib/site/template/format";
+
+function trim0(n) {
+  return String(+n.toFixed(2));
 }
 
-export function CityCard({ city, index = 0 }) {
+function kShort(n) {
+  return n >= 1e5 ? `${trim0(n / 1e5)} L` : `${trim0(n / 1e3)}k`;
+}
+
+// Ported from the prototype's localityCard() in app.js, fed by
+// toTemplateLocality() instead of the prototype's own mock data shape.
+export function LocalityCard({ locality }) {
+  const l = locality;
+  const yoy = Math.round((l.trend[5] / l.trend[1] - 1) * 100);
   return (
-    <Link
-      href={`/city/${city.id}`}
-      className="group relative flex h-56 flex-col justify-end overflow-hidden rounded-2xl shadow-card transition-all duration-500 hover:-translate-y-1 hover:shadow-card-hover sm:h-64"
-    >
-      <PropertyImage
-        src={imageForCity(index)}
-        alt=""
-        className="transition-transform duration-700 ease-out group-hover:scale-110"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/5 transition-colors duration-500 group-hover:from-black/95" />
-      <ArrowUpRight className="absolute right-4 top-4 h-5 w-5 -translate-y-1 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-80" />
-      <div className="relative p-4 sm:p-5">
-        <span className="mb-2 block h-px w-8 bg-amber-300/80 transition-all duration-300 group-hover:w-12" />
-        <p className="font-serif text-2xl italic leading-tight text-white sm:text-[26px]">{city.name}</p>
-        <p className="mt-1.5 text-xs font-medium tracking-wide text-white/70">
-          {city.propertyCount + city.projectCount} listings
-        </p>
+    <Link className="loc-card" href={`/locality/${l.slug}`} aria-label={`${l.name}, ${l.zone} — view locality`}>
+      <div className="media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img loading="lazy" src={l.img} alt="" />
+        <span className="loc-rating"><i className="bi bi-star-fill" />{l.rating}</span>
+      </div>
+      <div className="body">
+        <div className="loc-head">
+          <div>
+            <div className="loc-name">{l.name}</div>
+            <div className="loc-zone"><i className="bi bi-geo-alt" />{l.zone}</div>
+          </div>
+        </div>
+        <div className="loc-stats">
+          <div><div className="k">Avg. sale price</div><div className="v">₹{num(l.avg)}<small>/sq.ft</small></div></div>
+          <div><div className="k">Rent (2 BHK)</div><div className="v">₹{kShort(l.rent[0])}–{kShort(l.rent[1])}<small>/mo</small></div></div>
+        </div>
+        <div className="loc-foot">
+          <span><i className="bi bi-houses" />{num(l.count)} properties</span>
+          {yoy > 0 && <span className="loc-trend"><i className="bi bi-graph-up-arrow" />+{yoy}% YoY</span>}
+        </div>
+        <div className="loc-reveal" aria-hidden="true"><span className="loc-explore">Explore locality<i className="bi bi-arrow-right" /></span></div>
       </div>
     </Link>
   );

@@ -1,19 +1,18 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
-import { Briefcase, Building, Home, TreePine, Trees, Users, Warehouse } from "lucide-react";
 import { PROPERTY_TYPES_BY_TRANSACTION } from "@/schemas/site/postPropertySchema";
-import { cn } from "@/lib/utils";
+import { OptCard } from "@/components/site/post-property/opt-card";
 
 const TYPE_ICONS = {
-  Apartment: Building,
-  Villa: Home,
-  "Independent House": Home,
-  Plot: Trees,
-  Farmhouse: TreePine,
-  Commercial: Briefcase,
-  "Office Space": Warehouse,
-  "PG / Co-living": Users,
+  Apartment: "bi-building",
+  Villa: "bi-house-heart",
+  "Independent House": "bi-house",
+  Plot: "bi-bounding-box",
+  Farmhouse: "bi-tree",
+  Commercial: "bi-shop",
+  "Office Space": "bi-building",
+  "PG / Co-living": "bi-people",
 };
 
 export function TypeStep() {
@@ -23,36 +22,26 @@ export function TypeStep() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-foreground-muted">Select the property type that best describes your listing.</p>
+      <h1>What type of property?</h1>
+      <p className="lead">We&apos;ll only show fields that apply to this type.</p>
       <Controller
         control={control}
         name="type"
         render={({ field }) => (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {options.map((option) => {
-              const Icon = TYPE_ICONS[option] ?? Building;
-              const active = field.value === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => field.onChange(option)}
-                  className={cn(
-                    "flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all",
-                    active ? "border-primary-600 bg-primary-50 dark:bg-primary-500/10" : "border-border-subtle bg-surface hover:border-primary-300"
-                  )}
-                >
-                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", active ? "bg-primary-600 text-white" : "bg-surface-muted text-foreground-muted")}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="text-xs font-semibold text-foreground">{option}</span>
-                </button>
-              );
-            })}
+          <div className="opt-grid mt-24">
+            {options.map((option) => (
+              <OptCard
+                key={option}
+                icon={TYPE_ICONS[option] ?? "bi-building"}
+                title={option}
+                selected={field.value === option}
+                onClick={() => field.onChange(option)}
+              />
+            ))}
           </div>
         )}
       />
-      {errors.type && <p className="mt-2 text-xs font-medium text-error-600">{errors.type.message}</p>}
+      {errors.type && <span className="error-text"><i className="bi bi-exclamation-circle" />{errors.type.message}</span>}
     </div>
   );
 }
